@@ -56,10 +56,13 @@ export const PATIENT = {
 } as const;
 
 export const CLINIC = {
-  name: "Neighborhood Veterinary",
-  timezone: "America/New_York",
+  name: "Urbana Paws Clinic",
+  timezone: "America/Chicago",
   clinician: "Dr. Elaine Chen",
   frontDesk: "Morgan Bailey",
+  /** The agent's name, matching the production assistant callers already know. */
+  agentName: "Haley",
+  emergencyHospital: "Riverbend Emergency Vet Hospital",
 } as const;
 
 export const VISIT = {

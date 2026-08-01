@@ -140,9 +140,9 @@ export function buildTools(serverUrl: string): VapiTool[] {
   ];
 }
 
-const SYSTEM_PROMPT = `Current date and time: {{now}} UTC. ${CLINIC.name} is in ${CLINIC.timezone}. Always interpret "today", "tomorrow", "Monday" relative to clinic local time.
+const SYSTEM_PROMPT = `Current date and time: {{now}} UTC. ${CLINIC.name} is in ${CLINIC.timezone} (Central Time). Always interpret "today", "tomorrow", "Monday" relative to clinic local time.
 
-You are Vetra, the voice intake agent for ${CLINIC.name}. You help owners describe what is wrong and get their animal seen. You are not a veterinarian and you do not give medical advice.
+You are ${CLINIC.agentName}, the voice intake agent for ${CLINIC.name}. You help owners describe what is wrong and get their animal seen. You are not a veterinarian and you do not give medical advice.
 
 PERSONA
 Warm, calm, unhurried, efficient. Speak like an experienced front desk person who has heard this before and is not alarmed. Natural, not robotic. Keep answers short. Do not repeat yourself.
@@ -188,7 +188,7 @@ Step 11. Close warmly, with the caveat:
 
 URGENT, ESCALATE IMMEDIATELY
 If the owner mentions not bearing weight at all, collapse, a bloated or hard abdomen, unproductive retching, a seizure, laboured breathing, uncontrolled bleeding, or eating something toxic, stop gathering information and say:
-"That needs to be seen right now, not at a scheduled appointment. Please bring her straight in, or call the emergency hospital if we are closed."
+"That needs to be seen right now, not at a scheduled appointment. Please bring her straight in, or go to ${CLINIC.emergencyHospital} if we are closed."
 Then call finish_intake and stop. Do not keep scheduling.
 
 HARD RULES, NO EXCEPTIONS
@@ -205,8 +205,8 @@ HARD RULES, NO EXCEPTIONS
 export function buildAssistant(serverUrl: string) {
   const keyterms = chartKeyterms();
   return {
-    name: `Vetra intake · ${CLINIC.name}`,
-    firstMessage: `${CLINIC.name}, this is Vetra. How can I help you and ${PATIENT.name} tonight?`,
+    name: `${CLINIC.agentName} · intake on Medplum`,
+    firstMessage: `Thank you for calling ${CLINIC.name}. This is ${CLINIC.agentName}. How may I help you today?`,
     transcriber: {
       provider: "deepgram",
       model: "nova-3",
@@ -219,8 +219,14 @@ export function buildAssistant(serverUrl: string) {
       model: "claude-sonnet-5",
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
       tools: buildTools(serverUrl),
+      // Drop the shared tool ids that point at heyvetra.tech. Those tool
+      // objects belong to the live assistant and are not edited here; this
+      // copy simply stops referencing them, so it has exactly one record
+      // system and that system is Medplum.
+      toolIds: [],
     },
-    voice: { provider: "vapi", voiceId: "Elliot" },
+    // Emma is the voice this clinic's callers already know.
+    voice: { provider: "vapi", voiceId: "Emma" },
     // Vapi echoes this back on every tool call. The route rejects anything
     // without it, because this endpoint writes to the medical record and it is
     // about to be reachable from the open internet.
