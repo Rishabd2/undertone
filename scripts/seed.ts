@@ -32,6 +32,7 @@ import type {
   DocumentReference,
   Encounter,
   Immunization,
+  Location,
   Observation,
   Organization,
   Patient,
@@ -42,6 +43,12 @@ import type {
 } from "@medplum/fhirtypes";
 import { getMedplum, UNDERTONE_IDENTIFIER_SYSTEM } from "../src/lib/medplum";
 import { CHART, CLINIC, PATIENT } from "../src/lib/case";
+import {
+  buildAnimalPatient,
+  buildSlot,
+  buildWeightObservation,
+  practiceTimezoneExtension,
+} from "../src/lib/fhir-builders";
 
 const LOINC = "http://loinc.org";
 const SNOMED = "http://snomed.info/sct";
@@ -101,12 +108,7 @@ async function main() {
       identifier: ident("clinic-neighborhood-vet"),
       active: true,
       name: CLINIC.name,
-      extension: [
-        {
-          url: "https://vetra.health/fhir/StructureDefinition/practice-timezone",
-          valueString: CLINIC.timezone,
-        },
-      ],
+      extension: practiceTimezoneExtension(),
     },
     on("clinic-neighborhood-vet"),
   );
@@ -126,56 +128,7 @@ async function main() {
 
   // ---- Patient: an animal, modeled the way R4 says to ----------------------
   const patient = await medplum.upsertResource<Patient>(
-    {
-      resourceType: "Patient",
-      identifier: ident(PATIENT.mrn),
-      active: true,
-      name: [{ use: "usual", text: PATIENT.name, given: [PATIENT.name] }],
-      gender: PATIENT.sex,
-      birthDate: PATIENT.birthDate,
-      managingOrganization,
-      extension: [
-        {
-          // The R4 animal extension. Species, breed, gender status.
-          url: "http://hl7.org/fhir/StructureDefinition/patient-animal",
-          extension: [
-            {
-              url: "species",
-              valueCodeableConcept: {
-                coding: [
-                  {
-                    system: SNOMED,
-                    code: PATIENT.species.code,
-                    display: PATIENT.species.display,
-                  },
-                ],
-                text: PATIENT.species.text,
-              },
-            },
-            {
-              url: "breed",
-              // Breed is left as text: the SNOMED breed code was not verified,
-              // and a wrong code is worse than an honest string.
-              valueCodeableConcept: { text: PATIENT.breed.text },
-            },
-            {
-              url: "genderStatus",
-              valueCodeableConcept: {
-                coding: [
-                  {
-                    system:
-                      "http://terminology.hl7.org/CodeSystem/animal-genderstatus",
-                    code: PATIENT.genderStatus.code,
-                    display: PATIENT.genderStatus.display,
-                  },
-                ],
-                text: PATIENT.genderStatus.display,
-              },
-            },
-          ],
-        },
-      ],
-    },
+    buildAnimalPatient(managingOrganization),
     on(PATIENT.mrn),
   );
   note(patient);
@@ -219,35 +172,13 @@ async function main() {
     ["obs-weight-2024-07", 27.9, "2024-07-09"],
   ] as const) {
     const observation = await medplum.upsertResource<Observation>(
-      {
-        resourceType: "Observation",
-        identifier: ident(key),
-        status: "final",
-        category: [
-          {
-            coding: [
-              {
-                system:
-                  "http://terminology.hl7.org/CodeSystem/observation-category",
-                code: "vital-signs",
-              },
-            ],
-          },
-        ],
-        code: {
-          coding: [{ system: LOINC, code: "29463-7", display: "Body weight" }],
-          text: "Body weight",
-        },
+      buildWeightObservation({
+        key,
         subject,
+        performer: { reference: `Practitioner/${practitioner.id}` },
+        value,
         effectiveDateTime: date,
-        performer: [{ reference: `Practitioner/${practitioner.id}` }],
-        valueQuantity: {
-          value,
-          unit: "kg",
-          system: "http://unitsofmeasure.org",
-          code: "kg",
-        },
-      },
+      }),
       on(key),
     );
     note(observation);
@@ -329,6 +260,20 @@ async function main() {
   }
 
   // ---- The calendar. A booking is refused by the record, not by our code. --
+  // Schedule.actor does not accept Organization in R4, so the place is a
+  // Location. Caught by `npm run validate` before a single write went out.
+  const location = await medplum.upsertResource<Location>(
+    {
+      resourceType: "Location",
+      identifier: ident("location-neighborhood-vet"),
+      status: "active",
+      name: CLINIC.name,
+      managingOrganization,
+    },
+    on("location-neighborhood-vet"),
+  );
+  note(location);
+
   const schedule = await medplum.upsertResource<Schedule>(
     {
       resourceType: "Schedule",
@@ -336,7 +281,7 @@ async function main() {
       active: true,
       actor: [
         { reference: `Practitioner/${practitioner.id}` },
-        managingOrganization,
+        { reference: `Location/${location.id}` },
       ],
       comment: `${CLINIC.name} · ${CLINIC.timezone}`,
     },
@@ -368,18 +313,13 @@ async function main() {
     const end = new Date(start.getTime() + 30 * 60 * 1000);
     const key = `slot-${String(hour).padStart(2, "0")}${String(minute).padStart(2, "0")}`;
     const slot = await medplum.upsertResource<Slot>(
-      {
-        resourceType: "Slot",
-        identifier: ident(key),
+      buildSlot({
+        key,
         schedule: { reference: `Schedule/${schedule.id}` },
-        status,
         start: start.toISOString(),
         end: end.toISOString(),
-        comment:
-          status === "busy"
-            ? "Held for another patient"
-            : "Available for booking",
-      },
+        status,
+      }),
       on(key),
     );
     console.log(

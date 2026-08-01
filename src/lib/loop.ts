@@ -13,6 +13,13 @@ import type {
 import { getMedplum, UNDERTONE_IDENTIFIER_SYSTEM } from "./medplum";
 import { CLINIC, PATIENT, TRIAGE_RULES, VISIT } from "./case";
 import { written, type WrittenResource } from "./medplum-links";
+import {
+  buildCallCommunication,
+  buildFieldObservation,
+  buildFieldProvenance,
+  buildIntakeComposition,
+  div,
+} from "./fhir-builders";
 
 /**
  * One case, carried across the workflow, written into Medplum.
@@ -258,29 +265,16 @@ export async function runLoop(input: {
   const fieldResources: WrittenResource[] = [];
 
   for (const field of fields) {
-    const observation = await medplum.createResource<Observation>({
-      resourceType: "Observation",
-      status: "preliminary",
-      category: [
-        {
-          coding: [
-            {
-              system:
-                "http://terminology.hl7.org/CodeSystem/observation-category",
-              code: "survey",
-            },
-          ],
-        },
-      ],
-      code: { text: field.label },
-      subject,
-      effectiveDateTime: new Date().toISOString(),
-      performer: [deviceRef],
-      valueString: field.value,
-      note: field.quote
-        ? [{ text: `Owner's words: "${field.quote}"` }]
-        : [{ text: "Derived by the intake agent, not stated by the owner." }],
-    });
+    const observation = await medplum.createResource<Observation>(
+      buildFieldObservation({
+        subject,
+        device: deviceRef,
+        label: field.label,
+        value: field.value,
+        quote: field.quote,
+        effectiveDateTime: new Date().toISOString(),
+      }),
+    );
     fieldResources.push(
       written(
         `Observation/${observation.id}`,
@@ -290,34 +284,15 @@ export async function runLoop(input: {
 
     // The provenance. Author is the owner when she said it, the agent when it
     // derived it. Two different objects, and the record can tell them apart.
-    const provenance = await medplum.createResource<Provenance>({
-      resourceType: "Provenance",
-      target: [{ reference: `Observation/${observation.id}` }],
-      recorded: new Date().toISOString(),
-      activity: {
-        coding: [
-          {
-            system: "http://terminology.hl7.org/CodeSystem/v3-DataOperation",
-            code: "CREATE",
-          },
-        ],
-        text: field.source === "stated" ? "Stated by owner" : "Inferred by agent",
-      },
-      agent: [
-        {
-          type: {
-            coding: [
-              {
-                system:
-                  "http://terminology.hl7.org/CodeSystem/provenance-participant-type",
-                code: field.source === "stated" ? "informant" : "author",
-              },
-            ],
-          },
-          who: field.source === "stated" ? ownerRef : deviceRef,
-        },
-      ],
-    });
+    const provenance = await medplum.createResource<Provenance>(
+      buildFieldProvenance({
+        target: { reference: `Observation/${observation.id}` },
+        source: field.source,
+        owner: ownerRef,
+        device: deviceRef,
+        recorded: new Date().toISOString(),
+      }),
+    );
     fieldResources.push(
       written(
         `Provenance/${provenance.id}`,
@@ -423,50 +398,27 @@ export async function runLoop(input: {
 
   // ---- 6. WRITE BACK: the owner's own words reach the record --------------
   t = started();
-  const composition = await medplum.createResource<Composition>({
-    resourceType: "Composition",
-    status: "preliminary",
-    type: { text: "Pre-visit intake summary" },
-    subject,
-    date: new Date().toISOString(),
-    author: [deviceRef],
-    title: `Intake summary · ${PATIENT.name}`,
-    section: [
-      {
-        title: "Stated by the owner",
-        text: {
-          status: "generated",
-          div: div(
-            fields
-              .filter((f) => f.source === "stated")
-              .map((f) => `${f.label}: ${f.value}${f.quote ? ` — "${f.quote}"` : ""}`),
-          ),
-        },
-      },
-      {
-        title: "Inferred by the agent",
-        text: {
-          status: "generated",
-          div: div(
-            fields
-              .filter((f) => f.source === "inferred")
-              .map((f) => `${f.label}: ${f.value}`),
-          ),
-        },
-      },
-      {
-        title: "Triage",
-        text: {
-          status: "generated",
-          div: div([
-            `Rule: ${triaged.matched.name}`,
-            `Result: ${triaged.matched.result}`,
-            "No diagnosis was made by the agent.",
-          ]),
-        },
-      },
-    ],
-  });
+  const composition = await medplum.createResource<Composition>(
+    buildIntakeComposition({
+      subject,
+      author: deviceRef,
+      date: new Date().toISOString(),
+      stated: fields
+        .filter((f) => f.source === "stated")
+        .map(
+          (f) =>
+            `${f.label}: ${f.value}${f.quote ? `. Owner's words: "${f.quote}"` : ""}`,
+        ),
+      inferred: fields
+        .filter((f) => f.source === "inferred")
+        .map((f) => `${f.label}: ${f.value}`),
+      triage: [
+        `Rule: ${triaged.matched.name}`,
+        `Result: ${triaged.matched.result}`,
+        "No diagnosis was made by the agent.",
+      ],
+    }),
+  );
   const compositionResource = written(
     `Composition/${composition.id}`,
     "Intake summary, stated and inferred kept in separate sections",
@@ -483,27 +435,16 @@ export async function runLoop(input: {
 
   // ---- 7. THE CALL ITSELF: a resource, not an out-of-band log line --------
   t = started();
-  const communication = await medplum.createResource<Communication>({
-    resourceType: "Communication",
-    status: "completed",
-    subject,
-    sent: new Date().toISOString(),
-    sender: ownerRef,
-    recipient: [deviceRef],
-    medium: [
-      {
-        coding: [
-          {
-            system:
-              "http://terminology.hl7.org/CodeSystem/v3-ParticipationMode",
-            code: "PHONE",
-          },
-        ],
-      },
-    ],
-    topic: { text: VISIT.reasonForVisit },
-    payload: input.utterances.map((text) => ({ contentString: text })),
-  });
+  const communication = await medplum.createResource<Communication>(
+    buildCallCommunication({
+      subject,
+      sender: ownerRef,
+      recipient: deviceRef,
+      topic: VISIT.reasonForVisit,
+      utterances: input.utterances,
+      sent: new Date().toISOString(),
+    }),
+  );
   record({
     title: "THE CALL",
     line: "The call is a resource, with the owner as sender and every utterance as payload.",
@@ -570,18 +511,4 @@ function localTime(iso?: string): string {
     minute: "2-digit",
     weekday: "short",
   }).format(new Date(iso));
-}
-
-function div(lines: string[]): string {
-  const escaped = lines
-    .filter(Boolean)
-    .map(
-      (line) =>
-        `<p>${line
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")}</p>`,
-    )
-    .join("");
-  return `<div xmlns="http://www.w3.org/1999/xhtml">${escaped || "<p>None recorded.</p>"}</div>`;
 }

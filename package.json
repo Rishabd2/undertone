@@ -10,7 +10,10 @@
     "verify": "tsx scripts/verify-apis.ts",
     "seed": "tsx scripts/seed.ts",
     "index": "tsx scripts/build-index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "validate": "tsx scripts/validate-fhir.ts",
+    "pipeline": "tsx scripts/pipeline.ts",
+    "smoke": "tsx scripts/smoke-loop.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -23,6 +26,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@medplum/definitions": "^4.5.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
