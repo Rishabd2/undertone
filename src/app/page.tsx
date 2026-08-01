@@ -19,6 +19,16 @@ type LoopResponse = {
   allResources: WrittenResource[];
   patientId: string;
   patientUrl: string;
+  provenanceUrl: string;
+  animal: {
+    name: string;
+    species?: string;
+    speciesCode?: string;
+    breed?: string;
+    genderStatus?: string;
+    birthDate?: string;
+    owner: string;
+  };
   utterances: string[];
   error?: string;
 };
@@ -113,6 +123,37 @@ export default function Console() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* ---- The call, and what it became --------------------------- */}
         <aside>
+          {result?.animal && (
+            <div className="mb-6 rounded-lg border p-3 rule">
+              <SectionLabel>
+                Patient · decoded from the animal extension
+              </SectionLabel>
+              <div className="text-[15px] font-semibold">
+                {result.animal.name}
+              </div>
+              <div className="text-[12px] text-[var(--ink-soft)]">
+                {[
+                  result.animal.species,
+                  result.animal.breed,
+                  result.animal.genderStatus,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+              <div className="text-[12px] text-[var(--ink-soft)]">
+                Owner: {result.animal.owner}
+              </div>
+              <p className="mono mt-2 text-[10px] leading-snug text-[var(--ink-faint)]">
+                patient-animal · species {result.animal.speciesCode}
+              </p>
+              <p className="mt-1 text-[10px] leading-snug text-[var(--ink-faint)]">
+                Medplum&apos;s own patient header renders this as a human, because
+                FHIR&apos;s does. The species, breed, and gender status are in the
+                R4 animal extension, decoded here.
+              </p>
+            </div>
+          )}
+
           <SectionLabel>The call</SectionLabel>
           <div className="mb-6 space-y-2">
             {utterances.map((line, index) => (
@@ -154,6 +195,44 @@ export default function Console() {
                   </li>
                 ))}
               </ul>
+
+              <div className="mt-5 rounded-lg border p-3 rule">
+                <SectionLabel>Provenance ledger</SectionLabel>
+                <div className="flex gap-4">
+                  <div>
+                    <div className="origin-chart mono text-[18px]">
+                      {result.fields.filter((f) => f.source === "stated").length}
+                    </div>
+                    <div className="text-[10px] text-[var(--ink-faint)]">
+                      owner stated
+                    </div>
+                  </div>
+                  <div>
+                    <div className="origin-acoustic mono text-[18px]">
+                      {
+                        result.fields.filter((f) => f.source === "inferred")
+                          .length
+                      }
+                    </div>
+                    <div className="text-[10px] text-[var(--ink-faint)]">
+                      agent inferred
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-2 text-[10px] leading-snug text-[var(--ink-faint)]">
+                  The old PIMS could not tell these apart. Medplum indexes
+                  Provenance by target, so tomorrow you can still ask which is
+                  which.
+                </p>
+                <a
+                  href={result.provenanceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mono mt-2 inline-block text-[11px] underline decoration-dotted underline-offset-2"
+                >
+                  Search Provenance in Medplum
+                </a>
+              </div>
             </>
           )}
         </aside>

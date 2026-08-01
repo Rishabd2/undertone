@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { runLoop } from "@/lib/loop";
 import { PATIENT } from "@/lib/case";
-import { patientUrl } from "@/lib/medplum-links";
+import { patientUrl, provenanceForUrl } from "@/lib/medplum-links";
+import { getMedplum, UNDERTONE_IDENTIFIER_SYSTEM } from "@/lib/medplum";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,9 +35,31 @@ export async function POST(request: Request) {
       utterances,
     });
 
+    // Decode the animal extension for the header, because Medplum's own patient
+    // header renders Luna as a human: name, gender, birth date, and the
+    // patient-animal extension as a raw blob. This is the one thing worth
+    // showing outside their console.
+    const medplum = await getMedplum();
+    const patient = await medplum.readResource("Patient", result.patientId);
+    const animal = patient.extension?.find(
+      (e) => e.url === "http://hl7.org/fhir/StructureDefinition/patient-animal",
+    );
+    const sub = (url: string) =>
+      animal?.extension?.find((e) => e.url === url)?.valueCodeableConcept;
+
     return NextResponse.json({
       ...result,
       patientUrl: patientUrl(result.patientId),
+      provenanceUrl: provenanceForUrl(`Patient/${result.patientId}`),
+      animal: {
+        name: patient.name?.[0]?.text ?? PATIENT.name,
+        species: sub("species")?.text ?? sub("species")?.coding?.[0]?.display,
+        speciesCode: sub("species")?.coding?.[0]?.code,
+        breed: sub("breed")?.text,
+        genderStatus: sub("genderStatus")?.text,
+        birthDate: patient.birthDate,
+        owner: PATIENT.ownerName,
+      },
       utterances,
     });
   } catch (err) {
