@@ -29,12 +29,12 @@ export type VapiTool = {
       required: string[];
     };
   };
-  server: { url: string };
+  server: { url: string; secret: string };
 };
 
 /** The five things the agent may do. Nothing else is reachable. */
 export function buildTools(serverUrl: string): VapiTool[] {
-  const server = { url: serverUrl };
+  const server = { url: serverUrl, secret: env.vapi.serverSecret };
   return [
     {
       type: "function",
@@ -179,12 +179,19 @@ export function buildAssistant(serverUrl: string) {
     },
     model: {
       provider: "anthropic",
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-5",
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
       tools: buildTools(serverUrl),
     },
     voice: { provider: "vapi", voiceId: "Elliot" },
-    server: { url: serverUrl, timeoutSeconds: 20 },
+    // Vapi echoes this back on every tool call. The route rejects anything
+    // without it, because this endpoint writes to the medical record and it is
+    // about to be reachable from the open internet.
+    server: {
+      url: serverUrl,
+      timeoutSeconds: 20,
+      secret: env.vapi.serverSecret,
+    },
     metadata: {
       patientMrn: PATIENT.mrn,
       clinic: CLINIC.name,

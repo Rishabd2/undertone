@@ -50,6 +50,10 @@ export const env = {
     get serverUrl() {
       return optional("PUBLIC_BASE_URL");
     },
+    /** Shared secret Vapi sends back on every tool call. */
+    get serverSecret() {
+      return required("VAPI_SERVER_SECRET");
+    },
   },
   moss: {
     get projectId() {

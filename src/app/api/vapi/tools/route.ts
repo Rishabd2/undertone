@@ -19,6 +19,7 @@ import {
   buildIntakeComposition,
 } from "@/lib/fhir-builders";
 import { written, type WrittenResource } from "@/lib/medplum-links";
+import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,6 +93,17 @@ async function actors() {
 }
 
 export async function POST(request: Request) {
+  // This endpoint writes to the medical record and is reachable from the open
+  // internet, so it authenticates before it does anything else. Vapi sends the
+  // secret from the assistant's server config on every call.
+  const presented =
+    request.headers.get("x-vapi-secret") ??
+    request.headers.get("x-vapi-signature") ??
+    "";
+  if (!env.vapi.serverSecret || presented !== env.vapi.serverSecret) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   let body: any;
   try {
     body = await request.json();
