@@ -33,6 +33,7 @@ export async function GET(request: Request) {
     const [
       owners,
       observations,
+      weightObs,
       immunizations,
       appointments,
       compositions,
@@ -43,8 +44,15 @@ export async function GET(request: Request) {
       medplum.searchResources("RelatedPerson", { patient: subject }),
       medplum.searchResources("Observation", {
         subject,
+        status: "preliminary",
         _sort: "-_lastUpdated",
         _count: "60",
+      }),
+      medplum.searchResources("Observation", {
+        subject,
+        code: "http://loinc.org|29463-7",
+        _sort: "-date",
+        _count: "5",
       }),
       medplum.searchResources("Immunization", { patient: subject }),
       medplum.searchResources("Appointment", { actor: subject, _sort: "-date" }),
@@ -69,7 +77,7 @@ export async function GET(request: Request) {
     }
 
     const obs = observations as Observation[];
-    const intake = obs
+    const intakeRaw = obs
       .filter((o) => o.status === "preliminary")
       .map((o) => {
         const ref = `Observation/${o.id}`;
@@ -78,7 +86,7 @@ export async function GET(request: Request) {
         return {
           label: o.code?.text ?? "Field",
           value: o.valueString ?? "",
-          source: sourceByTarget.get(ref) ?? "inferred",
+          source: sourceByTarget.get(ref) ?? ("inferred" as const),
           quote: quoted?.[1],
           at: o.meta?.lastUpdated,
           url: written(ref, "").url,
@@ -86,14 +94,24 @@ export async function GET(request: Request) {
         };
       });
 
-    const vitals = obs
-      .filter((o) => o.status === "final" && o.valueQuantity)
-      .map((o) => ({
-        label: o.code?.text ?? "Measurement",
-        value: `${o.valueQuantity?.value} ${o.valueQuantity?.unit ?? ""}`.trim(),
-        date: o.effectiveDateTime,
-        url: written(`Observation/${o.id}`, "").url,
-      }));
+    // Rehearsals leave many copies of the same field. Keep the newest per label.
+    const intakeByLabel = new Map<string, (typeof intakeRaw)[number]>();
+    for (const field of intakeRaw) {
+      const prev = intakeByLabel.get(field.label);
+      if (!prev || (field.at ?? "") > (prev.at ?? "")) {
+        intakeByLabel.set(field.label, field);
+      }
+    }
+    const intake = [...intakeByLabel.values()].sort((a, b) =>
+      (b.at ?? "").localeCompare(a.at ?? ""),
+    );
+
+    const vitals = (weightObs as Observation[]).map((o) => ({
+      label: o.code?.text ?? "Weight",
+      value: `${o.valueQuantity?.value} ${o.valueQuantity?.unit ?? ""}`.trim(),
+      date: o.effectiveDateTime,
+      url: written(`Observation/${o.id}`, "").url,
+    }));
 
     const animal = patient.extension?.find((e) => e.url === ANIMAL_EXT);
     const sub = (url: string) =>
@@ -127,13 +145,15 @@ export async function GET(request: Request) {
         overdue: /overdue/i.test(i.note?.map((n) => n.text).join(" ") ?? ""),
         url: written(`Immunization/${i.id}`, "").url,
       })),
-      appointments: (appointments as Appointment[]).map((a) => ({
-        start: a.start,
-        status: a.status,
-        description: a.description,
-        url: written(`Appointment/${a.id}`, "").url,
-      })),
-      notes: (compositions as Composition[]).map((c) => ({
+      appointments: (appointments as Appointment[])
+        .slice(0, 3)
+        .map((a) => ({
+          start: a.start,
+          status: a.status,
+          description: a.description,
+          url: written(`Appointment/${a.id}`, "").url,
+        })),
+      notes: (compositions as Composition[]).slice(0, 2).map((c) => ({
         title: c.title ?? "Note",
         status: c.status,
         date: c.date,
@@ -143,7 +163,7 @@ export async function GET(request: Request) {
         })),
         url: written(`Composition/${c.id}`, "").url,
       })),
-      calls: (communications as Communication[]).map((c) => ({
+      calls: (communications as Communication[]).slice(0, 1).map((c) => ({
         sent: c.sent,
         topic: c.topic?.text,
         utterances: (c.payload ?? [])
@@ -151,7 +171,7 @@ export async function GET(request: Request) {
           .filter(Boolean) as string[],
         url: written(`Communication/${c.id}`, "").url,
       })),
-      tasks: (tasks as Task[]).map((t) => ({
+      tasks: (tasks as Task[]).slice(0, 3).map((t) => ({
         description: t.description,
         status: t.status,
         intent: t.intent,

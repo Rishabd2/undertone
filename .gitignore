@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local reference copy, not part of the app
+clinical-integration-agent-demo-main/
+

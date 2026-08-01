@@ -72,11 +72,14 @@ export default function Console() {
         <span className="text-[13px] text-[var(--ink-soft)]">
           one case, carried across the workflow, written into Medplum
         </span>
-        <span className="rounded-sm bg-[#fdf0ef] px-2 py-[3px] text-[10px] font-semibold tracking-wide text-[var(--alert)]">
-          SYNTHETIC PATIENT
-        </span>
 
         <div className="ml-auto flex items-center gap-2">
+          <a
+            href="/vetra-demo/"
+            className="rounded-md border px-3 py-1.5 text-[12px] font-medium rule"
+          >
+            Clinic demo
+          </a>
           <a
             href="/voice"
             className="rounded-md border px-3 py-1.5 text-[12px] font-medium rule"

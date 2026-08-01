@@ -147,14 +147,17 @@ export default function Clinic() {
         <span className="text-[12px] text-[var(--ink-soft)]">
           Dr. Elaine Chen
         </span>
-        <span className="rounded-sm bg-[#fdf0ef] px-2 py-[3px] text-[10px] font-semibold tracking-wide text-[var(--alert)]">
-          SYNTHETIC DATA
-        </span>
         <span className="flex items-center gap-1.5 text-[11px] text-[var(--ink-soft)]">
           <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-[var(--chart)]" />
           reading Medplum live
         </span>
         <div className="ml-auto flex gap-2">
+          <a href="/carevet" className="rounded-md border px-3 py-1.5 text-[12px] rule">
+            careVet demo
+          </a>
+          <a href="/vetra-demo" className="rounded-md border px-3 py-1.5 text-[12px] rule">
+            HTML demo
+          </a>
           <a href="/live" className="rounded-md border px-3 py-1.5 text-[12px] rule">
             Live call
           </a>

@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>careVet · Clinic operating layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Schibsted+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green-950:#0F1724; --green-900:#152033; --green-800:#1C2B45; --green-700:#243656;
+  --green-500:#3B6EA5; --green-300:#7FA3C9; --green-200:#B7CBE0;
+  --cream:#F5F6F8; --cream-2:#EBEEF2; --paper:#FFFFFF;
+  --ink:#1A2332; --ink-soft:#5C6B7A; --line:#DDE2E8;
+  --coral:#D45A3A; --amber:#C9922A; --blue:#3B6EA5; --mauve:#A87890;
+  --teal:#2F9E9A; --violet:#6B7DB8;
+  --sans:'Schibsted Grotesk','Avenir Next',-apple-system,system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+  --mono:'JetBrains Mono','SF Mono',Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  font-family:var(--sans); color:var(--ink); background:var(--green-950);
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+.app{
+  width:100vw; height:100vh; display:flex; flex-direction:column;
+  background:var(--cream);
+}
+
+/* ── top bar ── */
+.topbar{
+  height:52px; flex-shrink:0; display:flex; align-items:center; gap:16px;
+  padding:0 20px; background:var(--paper); border-bottom:1px solid var(--line);
+}
+.brand{display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px;}
+.brand .mark{
+  width:24px; height:24px; border-radius:7px; background:var(--green-800);
+  display:grid; place-items:center; color:var(--cream);
+  font-family:var(--serif); font-style:italic; font-size:15px;
+}
+.brand .sub{font-weight:400; color:var(--ink-soft); font-size:12.5px; font-family:var(--mono);}
+.src,.inf{font-family:var(--mono); font-size:9.5px; letter-spacing:.05em; text-transform:uppercase;
+  padding:1px 5px; border-radius:20px; margin-left:5px; border:1px solid; vertical-align:middle;}
+.src{color:#2a6a9a; border-color:rgba(59,110,165,.35); background:rgba(59,110,165,.08);}
+.inf{color:#a86a00; border-color:rgba(168,106,0,.38); background:rgba(168,106,0,.09);}
+.stagepill{
+  margin:0 auto; display:flex; align-items:center; gap:10px;
+  background:var(--cream); border:1px solid var(--line); border-radius:999px;
+  padding:6px 14px; font-size:12.5px; color:var(--ink-soft); font-weight:500;
+}
+.stagepill b{color:var(--ink);}
+.stagepill .stg{color:var(--coral); font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;}
+.clock{font-family:var(--mono); font-size:12.5px; color:var(--ink-soft); min-width:70px; text-align:right;}
+
+/* ── control / progress bar ── */
+.ctrlbar{
+  height:38px; flex-shrink:0; display:flex; align-items:center; gap:14px;
+  padding:0 20px; background:var(--paper); border-bottom:1px solid var(--line);
+}
+.dots{display:flex; gap:6px; align-items:center;}
+.dots .dot{appearance:none; padding:0; cursor:pointer; transition:transform .12s ease;}
+.dots .dot:hover{transform:scale(1.45);}
+.dots .dot:focus-visible{outline:2px solid var(--green-600); outline-offset:2px;}
+body.seeking *{animation:none !important; transition:none !important;}
+.dot{
+  width:9px; height:9px; border-radius:50%; background:var(--cream-2);
+  border:1px solid var(--line); transition:.3s;
+}
+.dot.on{background:var(--green-500); border-color:var(--green-500); transform:scale(1.15);}
+.dot.done{background:var(--green-300); border-color:var(--green-300);}
+.scenelabel{font-size:12px; color:var(--ink-soft); font-weight:500; min-width:150px;}
+.scenelabel b{color:var(--ink);}
+.progress-wrap{flex:1; height:5px; background:var(--cream-2); border-radius:3px; overflow:hidden;}
+.progress{height:100%; width:0; background:linear-gradient(90deg,var(--green-500),var(--green-300)); transition:width .12s linear;}
+.btns{display:flex; gap:8px;}
+.btn{
+  font-family:var(--sans); font-size:12px; font-weight:700; cursor:pointer;
+  border:1px solid var(--line); background:var(--cream); color:var(--ink);
+  border-radius:999px; padding:5px 13px;
+}
+.btn:hover{border-color:var(--green-500); color:var(--green-700);}
+.btn.primary{background:var(--green-800); color:var(--cream); border-color:var(--green-800);}
+
+/* ── columns ── */
+.cols{flex:1; min-height:0; display:grid; grid-template-columns:248px 1fr 340px;}
+
+/* ── context rail ── */
+.rail{background:var(--cream); border-right:1px solid var(--line); padding:16px 14px; overflow:hidden; display:flex; flex-direction:column; min-height:0;}
+.rail-h{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--green-500); margin-bottom:4px;}
+.rail-sub{font-size:11px; color:var(--ink-soft); margin-bottom:14px; line-height:1.4;}
+.ctx-card{
+  background:var(--paper); border:1px solid var(--line); border-radius:12px;
+  padding:12px; flex:1; min-height:0; overflow-y:auto; box-shadow:0 6px 20px rgba(20,32,27,.05);
+  position:relative; transition:box-shadow .3s;
+}
+.ctx-card.pulse{box-shadow:0 0 0 3px rgba(46,125,91,.28), 0 6px 20px rgba(20,32,27,.05);}
+.ctx-title{font-family:var(--serif); font-size:15px; font-weight:600; margin-bottom:2px;}
+.ctx-tag{display:inline-block; font-family:var(--mono); font-size:9.5px; font-weight:700; color:var(--green-700); background:rgba(46,125,91,.12); padding:2px 7px; border-radius:5px; margin-bottom:10px;}
+.ctx-field{
+  display:flex; flex-direction:column; gap:1px; padding:7px 0; border-top:1px solid var(--cream-2);
+  opacity:0; transform:translateY(6px); animation:ctxin .45s ease forwards;
+}
+@keyframes ctxin{to{opacity:1; transform:none;}}
+.ctx-k{font-family:var(--mono); font-size:9.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-soft);}
+.ctx-v{font-size:12.5px; color:var(--ink); font-weight:500; line-height:1.35;}
+.ctx-v .flag{color:var(--coral); font-weight:700;}
+.ctx-v .ok{color:var(--green-500); font-weight:700;}
+.ctx-foot{margin-top:10px; font-family:var(--mono); font-size:10px; color:var(--green-500); text-align:center; opacity:0; transition:opacity .5s;}
+.ctx-foot.show{opacity:1;}
+
+/* ── stage (center) ── */
+.stage{background:var(--cream); padding:22px 26px; overflow:hidden; position:relative;}
+.stage-inner{height:100%; opacity:0; transform:translateY(10px); }
+.stage-inner.in{animation:stagein .5s ease forwards;}
+@keyframes stagein{to{opacity:1; transform:none;}}
+.stg-head{display:flex; align-items:baseline; gap:12px; margin-bottom:14px;}
+.stg-head h2{font-family:var(--serif); font-size:24px; font-weight:600;}
+.stg-head .k{font-family:var(--mono); font-size:11px; color:var(--coral); font-weight:700; text-transform:uppercase; letter-spacing:.06em;}
+.derive{font-size:11.5px; color:var(--ink-soft); margin-left:auto; font-family:var(--mono);}
+.derive b{color:var(--green-600,#2E7D5B);}
+
+/* generic cards */
+.card{background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:0 8px 24px rgba(20,32,27,.05);}
+.step{opacity:0; transform:translateY(10px); animation:stepin .5s ease forwards;}
+@keyframes stepin{to{opacity:1; transform:none;}}
+
+/* inbox */
+.inbox{display:flex; flex-direction:column; gap:8px;}
+.inrow{display:flex; align-items:center; gap:12px; padding:11px 14px; background:var(--paper); border:1px solid var(--line); border-radius:11px;}
+.inrow .av{width:30px; height:30px; border-radius:8px; background:var(--cream-2); display:grid; place-items:center; font-weight:700; font-size:13px; color:var(--green-700); flex-shrink:0;}
+.inrow .nm{font-weight:600; font-size:13.5px;}
+.inrow .sn{font-size:12px; color:var(--ink-soft);}
+.inrow .tm{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--ink-soft);}
+.inrow.live{border-color:var(--coral); background:#fff; box-shadow:0 0 0 3px rgba(224,112,74,.13);}
+.inrow.live .av{background:var(--coral); color:#fff;}
+.ring{width:8px; height:8px; border-radius:50%; background:var(--coral); animation:ring 1.3s infinite;}
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(224,112,74,.5);}70%{box-shadow:0 0 0 8px rgba(224,112,74,0);}100%{box-shadow:0 0 0 0 rgba(224,112,74,0);}}
+
+/* call + transcript */
+.callgrid{display:grid; grid-template-columns:1fr 232px; gap:16px; height:calc(100% - 42px);}
+.transcript{display:flex; flex-direction:column; gap:9px; overflow-y:auto; min-height:0;}
+.tr-head{flex-shrink:0; display:flex; align-items:center; gap:8px; margin-bottom:4px; padding-bottom:8px; border-bottom:1px solid var(--cream-2);}
+.tr-head .lab{font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft);}
+.tr-head a{font-family:var(--mono); font-size:10px; color:var(--green-500); text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; margin-left:auto;}
+.tr-body{display:flex; flex-direction:column; gap:9px; overflow-y:auto; flex:1; min-height:0;}
+.line{max-width:86%; padding:9px 13px; border-radius:12px; font-size:13px; line-height:1.45;}
+.line.caller{background:var(--cream-2); align-self:flex-start;}
+.line.vetra{background:var(--green-700); color:var(--cream); align-self:flex-end;}
+.line.sys{align-self:center; font-family:var(--mono); font-size:11px; background:rgba(217,166,76,.16); border:1px solid rgba(217,166,76,.4); color:#7a5a12; padding:6px 11px;}
+.line.rec{background:var(--paper); border:1px solid var(--line); align-self:flex-start; max-width:94%;}
+.line.rec .who{display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--green-500); margin-bottom:3px;}
+.patient-card{background:var(--paper); border:1px solid var(--line); border-radius:13px; padding:14px; height:max-content;}
+.pc-photo{width:100%; height:74px; border-radius:10px; background:linear-gradient(135deg,#dfa,#7FB8A0); display:grid; place-items:center; font-family:var(--serif); font-size:30px; color:var(--green-900); margin-bottom:10px;}
+.pc-nm{font-family:var(--serif); font-size:17px; font-weight:600;}
+.pc-meta{font-size:12px; color:var(--ink-soft); margin-bottom:8px;}
+.repeat{display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700; color:var(--green-700); background:rgba(46,125,91,.14); padding:3px 8px; border-radius:6px; margin-bottom:10px;}
+.hx{border-top:1px solid var(--cream-2); padding-top:8px; font-size:11.5px; color:var(--ink-soft); line-height:1.5;}
+.hx b{color:var(--ink);} .hx .flag{color:var(--coral); font-weight:700;}
+
+.badge-urgent{display:inline-flex; align-items:center; gap:7px; background:rgba(224,112,74,.12); border:1px solid var(--coral); color:var(--coral); font-family:var(--mono); font-weight:700; font-size:12px; padding:6px 12px; border-radius:8px;}
+
+/* SOAP */
+.soap{display:grid; grid-template-columns:1fr 1fr; gap:12px; height:calc(100% - 42px); overflow-y:auto;}
+.soap-block{background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:13px 15px;}
+.soap-block .lab{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:6px;}
+.soap-block.s .lab{color:var(--blue);} .soap-block.o .lab{color:var(--teal);}
+.soap-block.a .lab{color:var(--amber);} .soap-block.p .lab{color:var(--coral);}
+.soap-block p{font-size:12.5px; line-height:1.5; color:var(--ink);}
+.soap-block.p{grid-column:1 / -1;}
+.plan-list{list-style:none; display:flex; flex-direction:column; gap:6px;}
+.plan-list li{font-size:12.5px; display:flex; align-items:center; gap:8px;}
+.plan-list li::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--coral); flex-shrink:0;}
+
+/* fan-out chips */
+.fanwrap{height:calc(100% - 42px); display:flex; flex-direction:column; gap:16px;}
+.plan-src{background:var(--paper); border:1px dashed var(--coral); border-radius:12px; padding:12px 15px;}
+.plan-src .lab{font-family:var(--mono); font-size:10.5px; font-weight:700; color:var(--coral); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;}
+.plan-src p{font-size:12.5px; color:var(--ink);}
+.fan-arrow{text-align:center; font-family:var(--mono); font-size:11px; color:var(--ink-soft);}
+.chips{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+.chip{background:var(--paper); border:1px solid var(--line); border-radius:13px; padding:15px; text-align:center; box-shadow:0 8px 22px rgba(20,32,27,.06);}
+.chip .ic{width:40px; height:40px; border-radius:11px; margin:0 auto 9px; display:grid; place-items:center; font-size:19px;}
+.chip.rx .ic{background:rgba(217,166,76,.16);} .chip.vax .ic{background:rgba(200,138,160,.16);} .chip.rec .ic{background:rgba(155,140,224,.16);}
+.chip .t{font-weight:700; font-size:13.5px; margin-bottom:3px;}
+.chip .d{font-size:11.5px; color:var(--ink-soft); line-height:1.4;}
+.chip .rt{margin-top:8px; font-family:var(--mono); font-size:10px; color:var(--green-500); font-weight:700;}
+
+/* two-up result cards */
+.duo{display:grid; grid-template-columns:1fr 1fr; gap:14px; height:calc(100% - 42px);}
+.rescard{background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:0 8px 22px rgba(20,32,27,.05); display:flex; flex-direction:column;}
+.rescard .rh{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+.rescard .rh .tagdot{width:9px; height:9px; border-radius:3px;}
+.kv{display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid var(--cream-2); font-size:12.5px;}
+.kv .k{color:var(--ink-soft);} .kv .v{font-weight:600; font-family:var(--mono); font-size:12px;}
+.kv .v.ok{color:var(--green-500);} .kv .v.flag{color:var(--coral);}
+.stockbar{height:8px; border-radius:4px; background:var(--cream-2); overflow:hidden; margin-top:4px;}
+.stockbar > i{display:block; height:100%; background:var(--teal); transition:width 1s ease;}
+.toast{margin-top:auto; font-family:var(--mono); font-size:10.5px; color:var(--green-700); background:rgba(46,125,91,.1); border-radius:7px; padding:7px 10px; text-align:center;}
+.compliance-flip{display:flex; align-items:center; gap:10px; font-family:var(--mono); font-weight:700; font-size:13px;}
+.flip-old{color:var(--coral); text-decoration:line-through; opacity:.6;}
+.flip-new{color:var(--green-500);}
+
+/* invoice */
+.invoice .line-item{display:flex; justify-content:space-between; font-size:12.5px; padding:6px 0; border-top:1px solid var(--cream-2);}
+.invoice .line-item .amt{font-family:var(--mono); font-weight:600;}
+.invoice .total{display:flex; justify-content:space-between; margin-top:8px; padding-top:9px; border-top:2px solid var(--ink); font-weight:700;}
+.invoice .total .amt{font-family:var(--mono); font-size:15px;}
+
+/* discharge */
+.disch h4{font-family:var(--serif); font-size:14px; margin:8px 0 4px;}
+.disch ul{list-style:none; display:flex; flex-direction:column; gap:5px;}
+.disch li{font-size:12px; color:var(--ink); padding-left:16px; position:relative; line-height:1.4;}
+.disch li::before{content:"✓"; position:absolute; left:0; color:var(--green-500); font-weight:700;}
+
+/* recall / close */
+.recall-grid{display:flex; flex-direction:column; gap:10px; height:calc(100% - 42px);}
+.rc-row{display:flex; align-items:center; gap:12px; background:var(--paper); border:1px solid var(--line); border-radius:11px; padding:12px 15px;}
+.rc-row .ic{width:30px; height:30px; border-radius:8px; background:rgba(155,140,224,.16); display:grid; place-items:center; font-size:15px;}
+.rc-row .t{font-weight:600; font-size:13px;} .rc-row .d{font-size:11.5px; color:var(--ink-soft);}
+.rc-row .when{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--violet); font-weight:700;}
+.closeline{margin-top:auto; text-align:center; font-family:var(--serif); font-style:italic; font-size:20px; color:var(--green-800); padding:14px;}
+
+/* ── agent panel (right, dark) ── */
+.agents{background:var(--green-950); color:var(--cream); display:flex; flex-direction:column; overflow:hidden;}
+.ag-head{padding:14px 16px 10px; border-bottom:1px solid rgba(127,184,160,.16); display:flex; align-items:center; gap:9px;}
+.ag-head .t{font-weight:700; font-size:13.5px;}
+.ag-head .live{margin-left:auto; font-family:var(--mono); font-size:10px; color:var(--green-300); display:flex; align-items:center; gap:6px;}
+.ag-head .live .d{width:7px; height:7px; border-radius:50%; background:#4ADE80; animation:ring 1.5s infinite;}
+.ag-sub{padding:8px 16px; font-family:var(--mono); font-size:10px; color:var(--green-300); border-bottom:1px solid rgba(127,184,160,.12); line-height:1.5;}
+.stream{flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:9px;}
+.ev{display:grid; grid-template-columns:auto 1fr; gap:8px; align-items:start; opacity:0; transform:translateX(10px); animation:evin .4s ease forwards;}
+@keyframes evin{to{opacity:1; transform:none;}}
+.ev .ts{font-family:var(--mono); font-size:9.5px; color:rgba(168,207,190,.6); grid-column:1 / -1;}
+.ev .tag{font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.04em; padding:2px 6px; border-radius:5px; height:max-content; white-space:nowrap;}
+.ev .msg{font-family:var(--mono); font-size:11px; line-height:1.5; color:var(--green-200);}
+.ev .msg .hl{color:var(--cream); font-weight:700;}
+.ev .msg .fl{color:#F0906B; font-weight:700;}
+.ev .msg .gd{color:#7ee0b0; font-weight:700;}
+.ag-foot{padding:10px 16px; border-top:1px solid rgba(127,184,160,.16); font-family:var(--mono); font-size:9.5px; color:var(--green-300); line-height:1.5;}
+.ag-foot b{color:var(--green-200);}
+
+/* tag colors */
+.t-front{background:rgba(91,185,142,.18); color:#7ee0b0;}
+.t-recall{background:rgba(155,140,224,.2); color:#c3b6ff;}
+.t-triage{background:rgba(217,166,76,.2); color:#ecc987;}
+.t-scribe{background:rgba(91,155,217,.2); color:#a6cbf0;}
+.t-pharm{background:rgba(217,166,76,.2); color:#ecc987;}
+.t-inv{background:rgba(63,184,175,.2); color:#8fe0da;}
+.t-comp{background:rgba(200,138,160,.2); color:#e6b3c6;}
+.t-bill{background:rgba(224,112,74,.2); color:#f0a98f;}
+.t-ctx{background:rgba(127,184,160,.16); color:#a8cfbe;}
+
+.btn.on{background:var(--coral); color:#fff; border-color:var(--coral);}
+.ev .msg a{color:#a6cbf0; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px;}
+.live-field{border-left:2px solid var(--coral); padding-left:10px; margin:4px 0;}
+
+
+.watch{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green-500);margin-right:4px;}
+.watch .d{width:7px;height:7px;border-radius:50%;background:#3B6EA5;animation:ring 1.5s infinite;}
+.ctx-tag a{color:inherit;text-decoration:none;border-bottom:1px dotted currentColor;}
+.ctx-tag a:hover{color:var(--ink);}
+.ctx-v a,.ev .msg a{color:inherit;}
+.patient-card a{color:inherit;text-decoration:none;}
+.patient-card a:hover{text-decoration:underline;text-decoration-style:dotted;}
+.pc-photo{background:linear-gradient(135deg,#c5d6ea,#7FA3C9)!important;}
+
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms !important;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand"><span class="mark">C</span> careVet <span class="sub">· clinic operating layer</span></div>
+    <div class="stagepill"><span class="stg" id="stagePill">Intake</span> <b>Luna</b> · returning patient · <span id="pimsName">Medplum</span></div>
+    <div class="clock" id="clock">09:41</div>
+  </div>
+
+  <div class="ctrlbar">
+    <div class="dots" id="dots"></div>
+    <div class="scenelabel" id="sceneLabel"><b>Scene 1</b> · Intake</div>
+    <div class="progress-wrap"><div class="progress" id="progress"></div></div>
+    <div class="btns">
+      <span class="watch" id="watchBadge"><span class="d"></span> watching Medplum</span>
+      <button class="btn primary" id="playBtn">⏸ Pause</button>
+      <button class="btn" id="restartBtn">↻ Restart</button>
+    </div>
+  </div>
+
+  <div class="cols">
+    <!-- context rail -->
+    <aside class="rail">
+      <div class="rail-h">Shared context</div>
+      <div class="rail-sub">One record. Entered once. Read and written by every agent.</div>
+      <div class="ctx-card" id="ctxCard">
+        <div class="ctx-title">Patient record</div>
+        <span class="ctx-tag" id="ctxTag"><a id="ctxPatientLink" href="#" target="_blank" rel="noreferrer">Open Luna in Medplum</a></span>
+        <div id="ctxFields"></div>
+        <div class="ctx-foot" id="ctxFoot">One record. Every agent.</div>
+      </div>
+    </aside>
+
+    <!-- stage -->
+    <section class="stage"><div class="stage-inner" id="stage"></div></section>
+
+    <!-- agents -->
+    <aside class="agents">
+      <div class="ag-head"><span class="t">Behind the scenes</span><span class="live"><span class="d"></span><span id="streamMode">Medplum</span></span></div>
+      <div class="ag-sub" id="agSub">Every event links into Luna&rsquo;s Medplum record. Click any resource.</div>
+      <div class="stream" id="stream"></div>
+      <div class="ag-foot">careVet agent team · shared session · <b>human approves anything clinical</b></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ scene content ============ */
+  var STAGE = {
+    intake: function(){ return ''
+      + '<div class="stg-head"><span class="k">Scene 1</span><h2>A call comes in</h2><div class="derive" id="intakeDerive">from the call record</div></div>'
+      + '<div class="callgrid">'
+      +   '<div class="transcript" id="tr">'
+      +     '<div class="tr-head"><span class="lab">Call transcript</span><a id="trCommLink" href="#" target="_blank" rel="noreferrer">Medplum Communication</a></div>'
+      +     '<div class="tr-body" id="trBody"></div>'
+      +   '</div>'
+      +   '<div class="patient-card step" id="pcard" style="animation-delay:1.4s">'
+      +     '<div class="pc-photo">🐕</div>'
+      +     '<div class="pc-nm" id="pcNm">Luna</div>'
+      +     '<div class="pc-meta" id="pcMeta">6 yr · FS German Shepherd · 28.6 kg</div>'
+      +     '<span class="repeat">✓ returning patient</span>'
+      +     '<div class="hx" id="pcHx"><b>Owner:</b> Maria Gonzalez<br><b>Last visit:</b> Jul 1, wellness · 28.6 kg<br><b>On file:</b> no current medications<br><b>Rabies:</b> <span class="flag">OVERDUE</span></div>'
+      +   '</div>'
+      + '</div>'; },
+
+    soap: function(){ return ''
+      + '<div class="stg-head"><span class="k">Scene 2</span><h2>Exam becomes a structured record</h2><div class="derive">the scribe writes the SOAP live</div></div>'
+      + '<div class="soap">'
+      +   '<div class="soap-block s step" style="animation-delay:.1s"><div class="lab">Subjective</div><p>6 yr FS German Shepherd, acute left hind lameness since yesterday evening after jumping from the couch, with an audible yelp. Partial weight bearing since. Appetite and water intake normal, no vomiting.</p></div>'
+      +   '<div class="soap-block o step" style="animation-delay:.9s"><div class="lab">Objective</div><p>BW 28.6 kg · T 101.8°F · Grade 2/4 lameness left hind at walk. Mild effusion left stifle, discomfort on full extension. No drawer appreciated conscious. BCS 5/9.</p></div>'
+      +   '<div class="soap-block a step" style="animation-delay:1.7s"><div class="lab">Assessment</div><p>Acute left hind lameness following trauma. Rule out partial cranial cruciate ligament tear vs soft-tissue strain. Rabies lapsed.</p></div>'
+      +   '<div class="soap-block p step" style="animation-delay:2.5s"><div class="lab">Plan</div><ul class="plan-list"><li>Radiograph left stifle, 2 views</li><li>Carprofen 75 mg PO q12h × 10 days</li><li>Strict rest, leash only</li><li>Administer rabies (1 yr) today</li><li>Recheck in 12 days</li></ul></div>'
+      + '</div>'; },
+
+    fan: function(){ return ''
+      + '<div class="stg-head"><span class="k">Scene 3</span><h2>The plan runs the clinic</h2><div class="derive">one plan &rarr; every downstream workflow</div></div>'
+      + '<div class="fanwrap">'
+      +   '<div class="plan-src step"><div class="lab">SOAP · Plan</div><p>Radiograph · Carprofen · Administer rabies · Recheck 12 d</p></div>'
+      +   '<div class="fan-arrow step" style="animation-delay:.5s">▼ dispatched automatically ▼</div>'
+      +   '<div class="chips">'
+      +     '<div class="chip rx step" style="animation-delay:.9s"><div class="ic">💊</div><div class="t">Pharmacy</div><div class="d">Carprofen 75 mg × 20</div><div class="rt">&rarr; dispense + inventory</div></div>'
+      +     '<div class="chip vax step" style="animation-delay:1.3s"><div class="ic">💉</div><div class="t">Compliance</div><div class="d">Rabies, 1 yr</div><div class="rt">&rarr; record + report</div></div>'
+      +     '<div class="chip rec step" style="animation-delay:1.7s"><div class="ic">📅</div><div class="t">Recall</div><div class="d">Recheck 12 days</div><div class="rt">&rarr; schedule + remind</div></div>'
+      +   '</div>'
+      + '</div>'; },
+
+    pharmacy: function(){ return ''
+      + '<div class="stg-head"><span class="k">Scene 4</span><h2>Pharmacy &amp; inventory, no re-entry</h2><div class="derive">derived from the Plan</div></div>'
+      + '<div class="duo">'
+      +   '<div class="rescard step"><div class="rh"><span class="tagdot" style="background:var(--amber)"></span>Pharmacy · dispense</div>'
+      +     '<div class="kv"><span class="k">Drug</span><span class="v">Carprofen 75 mg</span></div>'
+      +     '<div class="kv"><span class="k">Quantity</span><span class="v">20 tablets</span></div>'
+      +     '<div class="kv"><span class="k">Sig</span><span class="v">1 tab PO q12h with food</span></div>'
+      +     '<div class="kv"><span class="k">Status</span><span class="v ok">DISPENSED</span></div>'
+      +     '<div class="toast">Kept in-house · not lost to a third-party refill line</div>'
+      +   '</div>'
+      +   '<div class="rescard step" style="animation-delay:.7s"><div class="rh"><span class="tagdot" style="background:var(--teal)"></span>Inventory · auto</div>'
+      +     '<div class="kv"><span class="k">Carprofen 75 mg on hand</span><span class="v" id="stockN">36</span></div>'
+      +     '<div class="stockbar"><i id="stockBar" style="width:100%"></i></div>'
+      +     '<div class="kv" style="margin-top:8px"><span class="k">After dispense</span><span class="v flag">16 tablets</span></div>'
+      +     '<div class="kv"><span class="k">Reorder point</span><span class="v flag">20</span></div>'
+      +     '<div class="toast">Reorder triggered · PO drafted to supplier</div>'
+      +   '</div>'
+      + '</div>'; },
+
+    compliance: function(){ return ''
+      + '<div class="stg-head"><span class="k">Scene 5</span><h2>Vaccination compliance closes itself</h2><div class="derive">the overdue flag, resolved</div></div>'
+      + '<div class="duo">'
+      +   '<div class="rescard step"><div class="rh"><span class="tagdot" style="background:var(--mauve)"></span>Rabies · administered</div>'
+      +     '<div class="compliance-flip" style="margin:6px 0 12px"><span class="flip-old">OVERDUE</span><span>&rarr;</span><span class="flip-new">COMPLIANT ✓</span></div>'
+      +     '<div class="kv"><span class="k">Vaccine</span><span class="v">Rabies, 1 yr</span></div>'
+      +     '<div class="kv"><span class="k">Lot</span><span class="v">RB-4471</span></div>'
+      +     '<div class="kv"><span class="k">Certificate</span><span class="v">RV-2026-0847</span></div>'
+      +     '<div class="kv"><span class="k">Next due</span><span class="v">Jul 2027</span></div>'
+      +   '</div>'
+      +   '<div class="rescard step" style="animation-delay:.7s"><div class="rh"><span class="tagdot" style="background:var(--mauve)"></span>Reporting</div>'
+      +     '<div class="kv"><span class="k">Rabies certificate</span><span class="v ok">issued</span></div>'
+      +     '<div class="kv"><span class="k">State registry</span><span class="v ok">filed</span></div>'
+      +     '<div class="kv"><span class="k">Owner copy</span><span class="v ok">sent</span></div>'
+      +     '<div class="kv"><span class="k">Reminder set</span><span class="v">12 mo</span></div>'
+      +     '<div class="toast">Compliance handled from the same record</div>'
+      +   '</div>'
+      + '</div>'; },
+
+    discharge: function(){ return ''
+      + '<div class="stg-head"><span class="k">Scene 6</span><h2>Discharge &amp; billing assemble themselves</h2><div class="derive">from everything that happened</div></div>'
+      + '<div class="duo">'
+      +   '<div class="rescard disch step"><div class="rh"><span class="tagdot" style="background:var(--green-500)"></span>Discharge · drafted</div>'
+      +     '<h4>Home care</h4><ul><li>Carprofen 1 tablet every 12 hours, with food</li><li>Strict rest, leash walks only, no stairs or jumping</li><li>Ice the stifle 10 min, 2×/day for 3 days</li></ul>'
+      +     '<h4>Call us if</h4><ul><li>She stops bearing weight on the leg entirely</li><li>Not eating &gt; 24 h, or vomiting on the medication</li></ul>'
+      +     '<div class="toast">Sent to Maria · recheck booked for Aug 8</div>'
+      +   '</div>'
+      +   '<div class="rescard invoice step" style="animation-delay:.7s"><div class="rh"><span class="tagdot" style="background:var(--coral)"></span>Invoice · auto-captured</div>'
+      +     '<div class="line-item step" style="animation-delay:.9s"><span>Exam · lameness</span><span class="amt">$68</span></div>'
+      +     '<div class="line-item step" style="animation-delay:1.1s"><span>Radiograph, left stifle, 2 views</span><span class="amt">$185</span></div>'
+      +     '<div class="line-item step" style="animation-delay:1.3s"><span>Carprofen 75 mg × 20</span><span class="amt">$38</span></div>'
+      +     '<div class="line-item step" style="animation-delay:1.5s"><span>Rabies vaccine, 1 yr</span><span class="amt">$28</span></div>'
+      +     '<div class="total step" style="animation-delay:1.8s"><span>Total</span><span class="amt">$319</span></div>'
+      +     '<div class="toast" style="margin-top:10px">Every service billed · nothing walks out uncharged</div>'
+      +   '</div>'
+      + '</div>'; },
+
+    recall: function(){ return ''
+      + '<div class="stg-head"><span class="k">Scene 7</span><h2>The loop closes on its own</h2><div class="derive">next steps scheduled from the record</div></div>'
+      + '<div class="recall-grid">'
+      +   '<div class="rc-row step"><div class="ic">📅</div><div><div class="t">Recheck exam</div><div class="d">Left stifle · Dr. Chen</div></div><div class="when">Aug 8</div></div>'
+      +   '<div class="rc-row step" style="animation-delay:.5s"><div class="ic">💉</div><div><div class="t">Rabies reminder</div><div class="d">Next dose due</div></div><div class="when">Jul 2027</div></div>'
+      +   '<div class="rc-row step" style="animation-delay:1s"><div class="ic">💊</div><div><div class="t">Course ends</div><div class="d">Carprofen, 10-day course</div></div><div class="when">in 8 days</div></div>'
+      +   '<div class="closeline step" style="animation-delay:1.6s">One record, entered once, ran the whole clinic.</div>'
+      + '</div>'; }
+  };
+
+  /* ============ scene timeline ============ */
+  // helper builders
+  function ctx(k,v){ return {type:'ctx', k:k, v:v}; }
+  function ev(tag,cls,msg){ return {type:'ev', tag:tag, cls:cls, msg:msg}; }
+
+  var SCENES = [
+    { key:'intake', label:'Intake · live call', stage:'Intake', dur:18000,
+      transcript:[
+        {d:300, t:'sys', x:'Incoming · 2:14 AM · first ring'},
+        {d:1000, t:'vetra', x:'Urbana Paws, this is Haley. How can I help you and Luna tonight?'},
+        {d:2600, t:'caller', x:"Hi, it's Maria. Luna's been limping on her back left leg since yesterday evening. She jumped off the couch and yelped."},
+        {d:5000, t:'sys', x:'Caller matched from number · returning patient'},
+        {d:6400, t:'vetra', x:'Is she putting any weight on that leg, and is she eating normally?'},
+        {d:8400, t:'caller', x:"Some weight, not much. She's eating fine, no vomiting."},
+        {d:10400, t:'vetra', x:"That doesn't need the emergency line tonight. Dr. Chen has 10:30 tomorrow morning. Shall I book her?"},
+        {d:12600, t:'caller', x:'Yes please, thank you.'},
+        {d:13800, t:'sys', x:'Booked 10:30 AM · SMS confirmation sent'}
+      ],
+      timeline:[
+        {at:600, e:ev('FRONTDESK','t-front','call.answer <span class="hl">first ring</span> · 2:14 AM')},
+        {at:2800, e:ev('FRONTDESK','t-front','identity.resolve &rarr; <span class="hl">Luna / Maria Gonzalez</span> (returning)')},
+        {at:2900, e:ctx('Owner','Maria Gonzalez')},
+        {at:3400, e:ctx('Patient','Luna · 6y FS German Shepherd')},
+        {at:3900, e:ctx('Status','Returning patient')},
+        {at:5000, e:ev('RECALL','t-recall','context.retrieve &rarr; last visit Jul 1 · 28.6 kg · rabies <span class="fl">OVERDUE</span>')},
+        {at:5600, e:ctx('Complaint','Lameness, hind left <span class="src">stated</span>')},
+        {at:6200, e:ctx('Onset','Yesterday evening <span class="src">stated</span>')},
+        {at:6800, e:ctx('Care gap','<span class="flag">Rabies overdue</span> · flag for visit')},
+        {at:8800, e:ctx('Weight bearing','Partial <span class="src">stated</span>')},
+        {at:9200, e:ctx('Appetite','Normal, no vomiting <span class="src">stated</span>')},
+        {at:9800, e:ctx('Duration','&lt;48h <span class="inf">inferred</span>')},
+        {at:10600, e:ev('TRIAGE','t-triage','triage.rule &rarr; R1 non-weight-bearing <span class="fl">not met</span>')},
+        {at:11000, e:ev('TRIAGE','t-triage','triage.rule &rarr; <span class="hl">R2 partial, &lt;48h</span> &rarr; <span class="gd">ROUTINE</span> · agent may book')},
+        {at:11400, e:ctx('Triage','ROUTINE · 30 min exam')},
+        {at:13900, e:ev('FRONTDESK','t-front','schedule.book &rarr; 10:30 AM Dr. Chen · <span class="gd">sms sent</span>')},
+        {at:14300, e:ctx('Appointment','10:30 AM · Dr. Chen')}
+      ]},
+
+    { key:'soap', label:'Exam · SOAP', stage:'Exam', dur:15000,
+      timeline:[
+        {at:400, e:ev('SCRIBE','t-scribe','scribe.listen &rarr; exam in progress')},
+        {at:1200, e:ctx('Vitals','28.6 kg · T 101.8°F')},
+        {at:2000, e:ev('SCRIBE','t-scribe','scribe.compose &rarr; <span class="hl">Subjective</span> + <span class="hl">Objective</span>')},
+        {at:3400, e:ctx('Assessment','Acute LH lameness · r/o partial CCL tear')},
+        {at:4200, e:ev('SCRIBE','t-scribe','scribe.compose &rarr; <span class="hl">Assessment</span> + <span class="hl">Plan</span>')},
+        {at:5200, e:ctx('Plan','Rad · carprofen · rabies · recheck 12 d')},
+        {at:6400, e:ev('SCRIBE','t-scribe','record.write &rarr; SOAP structured · <span class="gd">pending DVM sign-off</span>')}
+      ]},
+
+    { key:'fan', label:'Plan fans out', stage:'Orchestrate', dur:13000,
+      timeline:[
+        {at:600, e:ev('SCRIBE','t-scribe','plan.parse &rarr; 3 actionable orders found')},
+        {at:1600, e:ev('SCRIBE','t-scribe','plan.route &rarr; <span class="hl">pharmacy · compliance · recall</span> dispatched')},
+        {at:2600, e:ctx('Routed','3 workflows dispatched')},
+        {at:3600, e:ev('CONTEXT','t-ctx','one context object · read by every agent, no re-entry')}
+      ]},
+
+    { key:'pharmacy', label:'Pharmacy · inventory', stage:'Pharmacy', dur:14000,
+      timeline:[
+        {at:500, e:ev('PHARMACY','t-pharm','pharmacy.dispense &rarr; carprofen 75 mg × 20')},
+        {at:1400, e:ctx('Rx dispensed','Carprofen 75 mg × 20')},
+        {at:2600, e:ev('INVENTORY','t-inv','inventory.decrement &rarr; 36 &rarr; <span class="hl">16</span>')},
+        {at:2800, e:{type:'fx', fn:'stock'}},
+        {at:4000, e:ev('INVENTORY','t-inv','inventory.reorder &rarr; below point (20) · <span class="gd">PO drafted</span>')},
+        {at:4400, e:ctx('Inventory','Reorder triggered')}
+      ]},
+
+    { key:'compliance', label:'Vaccination compliance', stage:'Compliance', dur:14000,
+      timeline:[
+        {at:500, e:ev('COMPLIANCE','t-comp','compliance.record &rarr; rabies administered · lot RB-4471')},
+        {at:1600, e:ctx('Rabies','<span class="ok">COMPLIANT</span> · cert RV-2026-0847')},
+        {at:2800, e:ev('COMPLIANCE','t-comp','compliance.status &rarr; <span class="fl">OVERDUE</span> &rarr; <span class="gd">COMPLIANT</span>')},
+        {at:4000, e:ev('COMPLIANCE','t-comp','compliance.report &rarr; state registry <span class="gd">filed</span> · owner copy sent')},
+        {at:4600, e:ctx('Next due','Rabies · Jul 2027')}
+      ]},
+
+    { key:'discharge', label:'Discharge · billing', stage:'Discharge', dur:15000,
+      timeline:[
+        {at:500, e:ev('CLIENT CARE','t-comp','discharge.draft &rarr; home care from SOAP plan')},
+        {at:1600, e:ctx('Discharge','Sent to owner')},
+        {at:2600, e:ev('BILLING','t-bill','billing.capture &rarr; 4 services from the record')},
+        {at:3600, e:ev('BILLING','t-bill','billing.match &rarr; fee schedule · invoice <span class="hl">$319</span>')},
+        {at:4200, e:ctx('Invoice','$319 · 4 line items')},
+        {at:5200, e:ev('BILLING','t-bill','nothing walks out uncharged · <span class="gd">invoice ready</span>')}
+      ]},
+
+    { key:'recall', label:'Recall · close loop', stage:'Recall', dur:15000,
+      timeline:[
+        {at:600, e:ev('RECALL','t-recall','recall.schedule &rarr; recheck Aug 8 · 12 days')},
+        {at:1600, e:ctx('Follow-up','Recheck 12 d · rabies 12 mo · course ends day 10')},
+        {at:2400, e:ev('RECALL','t-recall','recall.remind &rarr; rabies 12 mo · course ends in 8 days')},
+        {at:3600, e:ev('CONTEXT','t-ctx','<span class="gd">one record</span> · entered once · ran the whole clinic')},
+        {at:4200, e:{type:'foot'}}
+      ]}
+  ];
+
+  /* ============ build flat timeline ============ */
+  var timeline = [];  // {t, fn}
+  var total = 0;
+  var STARTS = [];    // ms offset of each scene, for click-to-seek
+  SCENES.forEach(function(sc, i){
+    var base = total;
+    STARTS.push(base);
+    timeline.push({t:base, fn:function(){ enterScene(i, sc); }});
+    (sc.timeline||[]).forEach(function(item){
+      timeline.push({t:base+item.at, fn:function(){ runEvent(item.e); }});
+    });
+    total += sc.dur;
+  });
+  timeline.sort(function(a,b){return a.t-b.t;});
+
+  /* ============ DOM refs ============ */
+  var stageEl = document.getElementById('stage');
+  var streamEl = document.getElementById('stream');
+  var ctxFields = document.getElementById('ctxFields');
+  var ctxCard = document.getElementById('ctxCard');
+  var ctxFoot = document.getElementById('ctxFoot');
+  var progressEl = document.getElementById('progress');
+  var dotsEl = document.getElementById('dots');
+  var sceneLabel = document.getElementById('sceneLabel');
+  var stagePill = document.getElementById('stagePill');
+  var playBtn = document.getElementById('playBtn');
+  var restartBtn = document.getElementById('restartBtn');
+  var clockEl = document.getElementById('clock');
+  var ctxPatientLink = document.getElementById('ctxPatientLink');
+
+  /* Luna's Medplum record — hydrated once, refreshed as the call writes. */
+  var LUNA = null;
+  var seenObs = {};
+  var seenOut = {};
+  var ctxKeys = {};
+  var primed = false;
+
+  function link(url, text){
+    if(!url) return text || '';
+    return '<a href="'+url+'" target="_blank" rel="noreferrer">'+(text||url)+'</a>';
+  }
+  function badge(source){
+    return source === 'stated'
+      ? '<span class="src">stated</span>'
+      : '<span class="inf">inferred</span>';
+  }
+  function intakeField(label){
+    if(!LUNA || !LUNA.intake) return null;
+    for(var i=0;i<LUNA.intake.length;i++){
+      if(LUNA.intake[i].label === label) return LUNA.intake[i];
+    }
+    return null;
+  }
+  function medLinkFor(kind){
+    if(!LUNA) return '';
+    if(kind==='patient' && LUNA.patient) return link(LUNA.patient.url, LUNA.patient.reference || ('Patient/'+LUNA.patient.id));
+    if(kind==='owner' && LUNA.owner && LUNA.owner.url) return link(LUNA.owner.url, 'RelatedPerson');
+    if(kind==='rabies' && LUNA.immunization) return link(LUNA.immunization.url, LUNA.immunization.reference);
+    if(kind==='weight' && LUNA.weights && LUNA.weights[0]) return link(LUNA.weights[0].url, LUNA.weights[0].reference);
+    if(kind==='appointment' && LUNA.appointment) return link(LUNA.appointment.url, LUNA.appointment.reference);
+    if(kind==='composition' && LUNA.composition) return link(LUNA.composition.url, LUNA.composition.reference);
+    if(kind==='communication' && LUNA.communication) return link(LUNA.communication.url, LUNA.communication.reference);
+    if(kind==='task' && LUNA.task) return link(LUNA.task.url, LUNA.task.reference);
+    if(kind.indexOf('field:')===0){
+      var f = intakeField(kind.slice(6));
+      if(!f) return '';
+      var s = link(f.observation.url, f.observation.reference);
+      if(f.provenance) s += ' · ' + link(f.provenance.url, f.provenance.reference);
+      return s;
+    }
+    return '';
+  }
+
+  SCENES.forEach(function(sc,i){
+    var d=document.createElement('button');
+    d.className='dot'; d.type='button';
+    d.title = 'Scene '+(i+1)+' · '+sc.label;
+    d.setAttribute('aria-label', d.title);
+    d.addEventListener('click', function(){ seek(i); });
+    dotsEl.appendChild(d);
+  });
+  var dotEls = dotsEl.querySelectorAll('.dot');
+
+  var trTimers = [];
+  function paintPatientCard(){
+    if(!LUNA) return;
+    var nm = document.getElementById('pcNm');
+    var meta = document.getElementById('pcMeta');
+    var hx = document.getElementById('pcHx');
+    var card = document.getElementById('pcard');
+    if(!nm) return;
+    var wt = (LUNA.weights && LUNA.weights[0]) ? (LUNA.weights[0].value + ' ' + LUNA.weights[0].unit) : '28.6 kg';
+    nm.innerHTML = link(LUNA.patient.url, LUNA.patient.name);
+    meta.textContent = [LUNA.patient.genderStatus, LUNA.patient.breed, wt].filter(Boolean).join(' · ');
+    var rabies = LUNA.immunization
+      ? (LUNA.immunization.overdue
+          ? '<a href="'+LUNA.immunization.url+'" target="_blank" rel="noreferrer"><span class="flag">OVERDUE</span></a>'
+          : link(LUNA.immunization.url, 'on file'))
+      : '<span class="flag">OVERDUE</span>';
+    var owner = LUNA.owner.url
+      ? '<a href="'+LUNA.owner.url+'" target="_blank" rel="noreferrer">'+LUNA.owner.name+'</a>'
+      : LUNA.owner.name;
+    hx.innerHTML = '<b>Owner:</b> '+owner+'<br><b>Weight:</b> '+link((LUNA.weights&&LUNA.weights[0]||{}).url, wt)+'<br><b>Rabies:</b> '+rabies;
+    if(card){
+      card.style.cursor = 'pointer';
+      card.onclick = function(ev){
+        if(ev.target.closest('a')) return;
+        if(LUNA.patient && LUNA.patient.url) window.open(LUNA.patient.url, '_blank');
+      };
+    }
+  }
+
+  function paintRecordedTranscript(){
+    var body = document.getElementById('trBody');
+    var a = document.getElementById('trCommLink');
+    var derive = document.getElementById('intakeDerive');
+    if(!body) return false;
+    var comm = LUNA && LUNA.communication;
+    var lines = (comm && comm.utterances && comm.utterances.length) ? comm.utterances : null;
+    if(a){
+      if(comm && comm.url){
+        a.href = comm.url;
+        a.textContent = comm.reference || 'Medplum Communication';
+        a.style.display = '';
+      } else {
+        a.style.display = 'none';
+      }
+    }
+    if(!lines) return false;
+    if(derive) derive.innerHTML = 'from ' + link(comm.url, comm.reference);
+    body.innerHTML = '';
+    var sys = document.createElement('div');
+    sys.className = 'line sys';
+    sys.innerHTML = 'Replay · stored call record · ' + link(comm.url, comm.reference);
+    body.appendChild(sys);
+    lines.forEach(function(text, i){
+      trTimers.push(setTimeout(function(){
+        if(!document.getElementById('trBody')) return;
+        var div = document.createElement('div');
+        div.className = 'line rec';
+        div.innerHTML = '<span class="who">Owner · Maria</span>' + String(text).replace(/</g,'&lt;');
+        body.appendChild(div);
+        body.scrollTop = body.scrollHeight;
+      }, 400 + i * 900));
+    });
+    return true;
+  }
+
+  function enterScene(i, sc){
+    dotEls.forEach(function(d,j){ d.className = 'dot' + (j<i?' done':(j===i?' on':'')); });
+    sceneLabel.innerHTML = '<b>Scene '+(i+1)+'</b> · '+sc.label;
+    stagePill.textContent = sc.stage;
+    var inner = document.createElement('div');
+    inner.className = 'stage-inner';
+    inner.innerHTML = STAGE[sc.key]();
+    stageEl.replaceWith(inner);
+    inner.id = 'stage'; stageEl = inner;
+    void inner.offsetWidth; inner.classList.add('in');
+    trTimers.forEach(clearTimeout); trTimers = [];
+    if(sc.key === 'intake'){
+      paintPatientCard();
+      if(paintRecordedTranscript()){
+        // Real Communication utterances — skip scripted demo lines.
+        return;
+      }
+    }
+    if(sc.transcript){
+      var tr = document.getElementById('trBody') || inner.querySelector('#tr');
+      sc.transcript.forEach(function(l){
+        trTimers.push(setTimeout(function(){
+          if(!tr) return;
+          var div = document.createElement('div');
+          div.className = 'line ' + l.t;
+          div.innerHTML = l.x;
+          tr.appendChild(div); tr.scrollTop = tr.scrollHeight;
+        }, l.d));
+      });
+    }
+  }
+
+  function pulse(){ ctxCard.classList.add('pulse'); setTimeout(function(){ctxCard.classList.remove('pulse');}, 500); }
+
+  function pushCtx(k, vHtml){
+    if(ctxKeys[k] === vHtml) return;
+    ctxKeys[k] = vHtml;
+    var existing = ctxFields.querySelector('[data-k="'+k.replace(/"/g,'')+'"]');
+    if(existing){
+      existing.querySelector('.ctx-v').innerHTML = vHtml;
+      pulse();
+      return;
+    }
+    var f = document.createElement('div');
+    f.className='ctx-field';
+    f.setAttribute('data-k', k);
+    f.innerHTML = '<span class="ctx-k">'+k+'</span><span class="ctx-v">'+vHtml+'</span>';
+    ctxFields.appendChild(f); pulse();
+  }
+
+  function pushEv(tag, cls, msg){
+    var d = document.createElement('div'); d.className='ev';
+    d.innerHTML = '<span class="ts">'+clockEl.textContent+'</span><span class="tag '+cls+'">'+tag+'</span><span class="msg">'+msg+'</span>';
+    streamEl.appendChild(d); streamEl.scrollTop = streamEl.scrollHeight;
+  }
+
+  function enrich(msg, kind){
+    var l = medLinkFor(kind);
+    return l ? (msg + ' · ' + l) : msg;
+  }
+
+  function runEvent(e){
+    if(e.type==='ctx'){
+      var v = e.v;
+      if(e.link){
+        var f = e.link.indexOf('field:')===0 ? intakeField(e.link.slice(6)) : null;
+        if(f){
+          v = link(f.observation.url, e.plain || f.value) + ' ' + badge(f.source);
+        } else {
+          var ml = medLinkFor(e.link);
+          if(ml) v = e.v + ' · ' + ml;
+        }
+      }
+      pushCtx(e.k, v);
+    } else if(e.type==='ev'){
+      var msg = e.msg;
+      if(e.link) msg = enrich(msg, e.link);
+      pushEv(e.tag, e.cls, msg);
+    } else if(e.type==='fx' && e.fn==='stock'){
+      var bar = document.getElementById('stockBar'); var n = document.getElementById('stockN');
+      if(bar) bar.style.width = (16/36*100)+'%';
+      if(n){ var v=36; var iv=setInterval(function(){ v-=1; if(v<=16){v=16; clearInterval(iv);} n.textContent=v; },55); }
+    } else if(e.type==='foot'){
+      ctxFoot.classList.add('show');
+    }
+  }
+
+  /* Rewrite intake scene events so they deep-link Luna's real resources. */
+  function rebuildIntakeTimeline(){
+    var intake = SCENES[0];
+    intake.timeline = [
+      {at:600, e:ev('FRONTDESK','t-front','call.answer <span class="hl">first ring</span>')},
+      {at:2800, e:{type:'ev', tag:'FRONTDESK', cls:'t-front', msg:'identity.resolve &rarr; <span class="hl">Luna / Maria Gonzalez</span>', link:'patient'}},
+      {at:2900, e:{type:'ctx', k:'Owner', v:'Maria Gonzalez', link:'owner'}},
+      {at:3400, e:{type:'ctx', k:'Patient', v:'Luna · German Shepherd', link:'patient'}},
+      {at:3900, e:ctx('Status','Returning patient')},
+      {at:5000, e:{type:'ev', tag:'RECALL', cls:'t-recall', msg:'context.retrieve &rarr; chart · rabies <span class="fl">OVERDUE</span>', link:'rabies'}},
+      {at:5600, e:{type:'ctx', k:'Complaint', v:'Lameness', link:'field:Presenting complaint', plain:'Lameness'}},
+      {at:6200, e:{type:'ctx', k:'Onset', v:'Yesterday evening', link:'field:Onset', plain:'Yesterday evening'}},
+      {at:6800, e:{type:'ctx', k:'Care gap', v:'<span class="flag">Rabies overdue</span>', link:'rabies'}},
+      {at:8800, e:{type:'ctx', k:'Weight bearing', v:'Partial', link:'field:Weight bearing', plain:'Partial'}},
+      {at:9200, e:{type:'ctx', k:'Appetite', v:'Normal', link:'field:Appetite and water', plain:'Normal'}},
+      {at:9800, e:{type:'ctx', k:'Duration', v:'&lt;48h', link:'field:Duration', plain:'Approximately 18 hours'}},
+      {at:10600, e:ev('TRIAGE','t-triage','triage.rule &rarr; R1 non-weight-bearing <span class="fl">not met</span>')},
+      {at:11000, e:ev('TRIAGE','t-triage','triage.rule &rarr; <span class="hl">R2 partial</span> &rarr; <span class="gd">ROUTINE</span>')},
+      {at:11400, e:ctx('Triage','ROUTINE · 30 min exam')},
+      {at:13900, e:{type:'ev', tag:'FRONTDESK', cls:'t-front', msg:'schedule.book &rarr; Dr. Chen', link:'appointment'}},
+      {at:14300, e:{type:'ctx', k:'Appointment', v:'booked', link:'appointment'}},
+      {at:15500, e:{type:'ev', tag:'MEDPLUM', cls:'t-ctx', msg:'call stored as Communication', link:'communication'}},
+      {at:16000, e:{type:'ev', tag:'MEDPLUM', cls:'t-scribe', msg:'intake Composition written', link:'composition'}},
+      {at:16500, e:{type:'ev', tag:'HANDOFF', cls:'t-triage', msg:'Task <span class="hl">intent: proposal</span> for Dr. Chen', link:'task'}}
+    ];
+    // rebuild flat timeline for scene 0 offsets only — full rebuild:
+    timeline = []; total = 0; STARTS = [];
+    SCENES.forEach(function(sc, i){
+      var base = total;
+      STARTS.push(base);
+      timeline.push({t:base, fn:function(){ enterScene(i, sc); }});
+      (sc.timeline||[]).forEach(function(item){
+        timeline.push({t:base+item.at, fn:function(){ runEvent(item.e); }});
+      });
+      total += sc.dur;
+    });
+    timeline.sort(function(a,b){return a.t-b.t;});
+  }
+
+  /* Also link later scenes that touch the record. */
+  SCENES[1].timeline.push({at:7000, e:{type:'ev', tag:'MEDPLUM', cls:'t-scribe', msg:'draft note against patient', link:'patient'}});
+  SCENES[4].timeline.push({at:5000, e:{type:'ev', tag:'MEDPLUM', cls:'t-comp', msg:'Immunization resource', link:'rabies'}});
+  SCENES[6].timeline.push({at:3800, e:{type:'ev', tag:'MEDPLUM', cls:'t-ctx', msg:'same Patient across every scene', link:'patient'}});
+
+  /* ============ clock ============ */
+  var clockBase = new Date(); clockBase.setHours(9,41,0,0);
+  function tickClock(elapsed){
+    var d = new Date(clockBase.getTime() + elapsed*1.2);
+    clockEl.textContent =
+      String(d.getHours()).padStart(2,'0')+':'+
+      String(d.getMinutes()).padStart(2,'0')+':'+
+      String(d.getSeconds()).padStart(2,'0');
+  }
+
+  /* ============ Always watch Medplum ============ */
+  function applyLive(data){
+    if(!data || data.error) return;
+    (data.fields || []).forEach(function(field){
+      var ref = field.observation && field.observation.reference;
+      if(!ref || seenObs[ref]) return;
+      if(!primed){ seenObs[ref] = true; return; }
+      seenObs[ref] = true;
+      var b = badge(field.source);
+      var links = link(field.observation.url, field.observation.reference);
+      if(field.provenance) links += ' · ' + link(field.provenance.url, field.provenance.reference);
+      pushCtx(field.label, field.value + ' ' + b + ' · ' + links);
+      pushEv('LIVE', 't-ctx', 'Observation.write &rarr; <span class="hl">'+field.label+'</span> = '+field.value+' '+b+' · '+links);
+      var tr = document.getElementById('tr');
+      if(tr && field.quote){
+        var div = document.createElement('div');
+        div.className = 'line caller';
+        div.textContent = field.quote;
+        tr.appendChild(div); tr.scrollTop = tr.scrollHeight;
+      }
+    });
+    (data.outcomes || []).forEach(function(o){
+      if(!o.reference || seenOut[o.reference]) return;
+      if(!primed){ seenOut[o.reference] = true; return; }
+      seenOut[o.reference] = true;
+      var cls = /Appointment/i.test(o.reference) ? 't-front'
+        : /Task/i.test(o.reference) ? 't-triage'
+        : /Composition/i.test(o.reference) ? 't-scribe'
+        : /Communication/i.test(o.reference) ? 't-front' : 't-ctx';
+      pushEv((o.resourceType||'RES').toUpperCase(), cls,
+        (o.why||'written')+' · '+link(o.url, o.reference));
+    });
+  }
+
+  function hydrateLuna(data){
+    if(!data || data.error) return;
+    LUNA = data;
+    if(data.patient){
+      LUNA.patient.reference = 'Patient/'+data.patient.id;
+      if(ctxPatientLink){
+        ctxPatientLink.href = data.patient.url;
+        ctxPatientLink.textContent = 'Open Luna in Medplum';
+      }
+      var pill = document.getElementById('pimsName');
+      if(pill) pill.innerHTML = link(data.patient.url, 'Medplum');
+    }
+    rebuildIntakeTimeline();
+    paintPatientCard();
+    if(data.communication && data.communication.utterances && data.communication.utterances.length){
+      pushCtx('Call record', link(data.communication.url, data.communication.reference));
+      pushEv('CALL', 't-front',
+        'transcript from stored Communication · '+link(data.communication.url, data.communication.reference)+
+        ' · '+data.communication.utterances.length+' utterances');
+    }
+  }
+
+  function startWatching(){
+    fetch('/api/demo/luna', { cache:'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(hydrateLuna)
+      .catch(function(){});
+
+    function tick(){
+      fetch('/api/live?minutes=60', { cache:'no-store' })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          applyLive(data);
+          if(!primed){
+            primed = true;
+            pushEv('MEDPLUM','t-ctx','watching Luna&rsquo;s record · new call writes appear here');
+          }
+        })
+        .catch(function(){});
+    }
+    tick();
+    setInterval(tick, 1500);
+  }
+
+  /* ============ rAF driver ============ */
+  var t = 0, last = null, paused = false, idx = 0;
+  function reset(){
+    t=0; last=null; idx=0;
+    streamEl.innerHTML=''; ctxFields.innerHTML=''; ctxFoot.classList.remove('show');
+    ctxKeys = {};
+    // keep seenObs primed so residue does not flood after restart
+    dotEls.forEach(function(d){d.className='dot';});
+    progressEl.style.width='0%';
+  }
+  function loop(ts){
+    if(last===null) last=ts;
+    var dt = ts-last; last=ts;
+    if(!paused){
+      t += dt;
+      if(t>total){ t=total; paused=true; playBtn.textContent='↻ Replay'; }
+      while(idx<timeline.length && timeline[idx].t<=t){ timeline[idx].fn(); idx++; }
+      progressEl.style.width = (t/total*100)+'%';
+      tickClock(t);
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function seek(i){
+    var target = STARTS[i];
+    reset();
+    document.body.classList.add('seeking');
+    while(idx < timeline.length && timeline[idx].t <= target){ timeline[idx].fn(); idx++; }
+    t = target;
+    progressEl.style.width = (t/total*100)+'%';
+    tickClock(t);
+    trTimers.forEach(clearTimeout); trTimers = [];
+    document.body.classList.remove('seeking');
+    paused = true; last = null;
+    playBtn.textContent = '▶ Play';
+  }
+
+  playBtn.addEventListener('click', function(){
+    if(t>=total){ doRestart(); return; }
+    paused=!paused; playBtn.textContent = paused ? '▶ Play' : '⏸ Pause';
+  });
+  function doRestart(){ reset(); paused=false; playBtn.textContent='⏸ Pause'; }
+  restartBtn.addEventListener('click', doRestart);
+
+  reset();
+  startWatching();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

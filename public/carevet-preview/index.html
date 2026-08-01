@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>careVet · architecture preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Schibsted+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#1A2332; --soft:#5C6B7A; --faint:#8A96A3;
+  --cream:#F5F6F8; --well:#EBEEF2; --paper:#FFFFFF; --line:#DDE2E8;
+  --navy:#0F1724; --navy2:#152033; --azure:#3B6EA5; --coral:#D45A3A; --ok:#2F8F5B;
+  --sans:"Schibsted Grotesk",system-ui,sans-serif;
+  --serif:Fraunces,Georgia,serif;
+  --mono:"JetBrains Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--sans);color:var(--ink);background:var(--navy);overflow:hidden}
+.app{height:100vh;display:flex;flex-direction:column;background:var(--cream)}
+.banner{flex-shrink:0;padding:8px 16px;background:#152033;color:#B7CBE0;font-family:var(--mono);font-size:11px;display:flex;gap:14px;align-items:center}
+.banner b{color:#fff}
+.banner .note{margin-left:auto;opacity:.75}
+
+.top{height:52px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--paper);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+.mark{width:24px;height:24px;border-radius:7px;background:var(--navy2);color:#F5F6F8;display:grid;place-items:center;font-family:var(--serif);font-style:italic}
+.sub{font-weight:400;color:var(--soft);font-size:12px;font-family:var(--mono)}
+.modes{margin:0 auto;display:flex;background:var(--cream);border:1px solid var(--line);border-radius:999px;padding:3px}
+.modes button{appearance:none;border:0;background:transparent;padding:6px 14px;border-radius:999px;font:inherit;font-size:12.5px;font-weight:600;color:var(--soft);cursor:pointer}
+.modes button.on{background:var(--navy);color:#fff}
+.btn{font:inherit;font-size:12px;font-weight:700;border:1px solid var(--line);background:var(--cream);border-radius:999px;padding:7px 13px;cursor:pointer;color:var(--ink)}
+.btn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+.cols{flex:1;min-height:0;display:grid;transition:grid-template-columns .25s ease}
+.cols.bts-on{grid-template-columns:248px 1fr 400px}
+.cols.bts-off{grid-template-columns:248px 1fr}
+
+/* left */
+.rail{background:var(--cream);border-right:1px solid var(--line);padding:14px;overflow:auto}
+.rail h3{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--azure);margin-bottom:4px}
+.rail .hint{font-size:11px;color:var(--soft);margin-bottom:12px;line-height:1.4}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px}
+.pt-name{font-family:var(--serif);font-size:18px;font-weight:600}
+.pt-meta{font-size:12px;color:var(--soft);margin:2px 0 8px}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:rgba(59,110,165,.12);color:var(--azure)}
+.kv{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--well);font-size:12.5px}
+.kv .k{color:var(--soft)}.kv .v{font-weight:600}
+.kv .flag{color:var(--coral);font-weight:700}
+.kv .ok{color:var(--ok);font-weight:700}
+.field{padding:8px 0;border-top:1px solid var(--well)}
+.field .lab{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft)}
+.field .val{font-size:13px;font-weight:500}
+.src{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:#2a6a9a;border:1px solid rgba(59,110,165,.35);background:rgba(59,110,165,.08);padding:1px 5px;border-radius:20px;margin-left:6px}
+
+/* center */
+.stage{padding:16px 20px;overflow:auto;min-height:0;background:var(--cream)}
+.stage-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.stage-head .k{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--coral);text-transform:uppercase}
+.stage-head h2{font-family:var(--serif);font-size:22px;font-weight:600}
+.stage-head .derive{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--soft)}
+
+.during{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;height:calc(100% - 44px);min-height:420px}
+.during[hidden],.after[hidden],#viewDuring[hidden],#viewAfter[hidden]{display:none !important}
+.after{display:flex;flex-direction:column;gap:12px;height:calc(100% - 44px);min-height:420px}
+.phone{background:linear-gradient(165deg,#1C2B45,#0F1724);border-radius:28px;padding:18px 16px 20px;color:#E8EEF5;display:flex;flex-direction:column;box-shadow:0 20px 50px -28px rgba(15,23,36,.55)}
+.phone .status{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;opacity:.7;margin-bottom:14px}
+.phone .who{text-align:center;margin-bottom:8px}
+.phone .who .nm{font-size:16px;font-weight:700}
+.phone .who .sub{font-size:12px;opacity:.65;font-family:var(--sans);font-weight:400}
+.wave{display:flex;align-items:center;justify-content:center;gap:3px;height:36px;margin:8px 0 14px}
+.wave i{width:3px;height:8px;border-radius:2px;background:rgba(127,163,201,.7);animation:wv 1s ease-in-out infinite}
+.wave i:nth-child(3n){animation-delay:.15s}.wave i:nth-child(3n+1){animation-delay:.3s}
+@keyframes wv{0%,100%{height:6px}50%{height:22px}}
+.tr{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:0 4px}
+.bubble{max-width:88%;padding:9px 12px;border-radius:14px;font-size:13px;line-height:1.45}
+.bubble.maria{align-self:flex-start;background:rgba(255,255,255,.1)}
+.bubble.haley{align-self:flex-end;background:var(--azure)}
+.bubble.hl{outline:2px solid #7FA3C9;background:rgba(127,163,201,.22)}
+.livebox{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px;overflow:auto}
+.livebox h4{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin-bottom:8px}
+.live-item{padding:8px 0;border-top:1px solid var(--well);font-size:13px;opacity:0;transform:translateY(6px);animation:in .4s ease forwards}
+.live-item.show{opacity:1;transform:none}
+@keyframes in{to{opacity:1;transform:none}}
+
+.tr-rail{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.tr-rail .lab{font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--soft);font-weight:700}
+.tr-rail .snip{flex:1;font-size:12.5px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-rail a{font-family:var(--mono);font-size:11px;color:var(--azure)}
+.visit{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;overflow:auto}
+.soap-banner{display:flex;align-items:center;gap:10px;background:var(--well);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+.soap-banner .t{font-weight:700;font-size:14px}
+.soap-banner .s{font-family:var(--mono);font-size:11px;color:var(--soft)}
+.soap-banner .pill{margin-left:auto;font-family:var(--mono);font-size:10px;font-weight:700;background:rgba(201,146,42,.15);color:#a86a00;padding:3px 8px;border-radius:6px}
+.soap-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.soap-block{background:var(--well);border-radius:10px;padding:12px}
+.soap-block .lab{font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--azure);margin-bottom:6px}
+.soap-block p{font-size:12.5px;line-height:1.45;color:var(--ink)}
+.soap-block.plan{grid-column:1/-1}
+.sign{display:flex;align-items:center;gap:12px;padding-top:8px;border-top:1px solid var(--line)}
+.sign button{background:var(--navy);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.sign button:disabled{opacity:.45;cursor:default}
+.sign .msg{font-size:12.5px;color:var(--soft)}
+.sign .msg.ok{color:var(--ok);font-weight:600}
+.fanout{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.fanout[hidden]{display:none !important}
+.fan-lab{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin-bottom:10px}
+.fan-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fan-chip{background:var(--well);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.fan-chip .rt{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--azure);text-transform:uppercase}
+.fan-chip .id{font-family:var(--mono);font-size:11px;color:var(--ink)}
+.fan-chip .d{font-size:12px;color:var(--soft)}
+
+/* right receipts */
+.bts{background:var(--navy);color:#C9D6E4;display:flex;flex-direction:column;min-height:0;border-left:1px solid #243656}
+.bts-head{display:flex;align-items:flex-start;justify-content:space-between;padding:14px;border-bottom:1px solid #243656}
+.bts-head h3{font-size:14px;color:#fff;font-weight:700}
+.bts-head p{font-family:var(--mono);font-size:10px;color:#7FA3C9;margin-top:3px;line-height:1.4}
+.bts-close{width:28px;height:28px;border-radius:8px;border:1px solid #243656;background:var(--navy2);color:#fff;cursor:pointer}
+.receipts{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.group{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#7FA3C9;margin:6px 0 2px}
+.rx{display:grid;grid-template-columns:64px 1fr;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(127,163,201,.12);font-family:var(--mono);font-size:11px;line-height:1.4}
+.rx .op{color:#9EC0E4;font-weight:700;font-size:10px}
+.rx a{color:#E8EEF5;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.rx .dim{color:#7FA3C9}
+.edge{position:fixed;right:0;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;background:var(--navy);color:#fff;border:0;border-radius:10px 0 0 10px;padding:14px 8px;font-size:11px;font-weight:700;cursor:pointer;z-index:20;letter-spacing:.04em}
+body.after-signed .soap-banner .pill{background:rgba(47,143,91,.15);color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="banner">
+    <b>PREVIEW</b> · feel of the architecture — not wired to Medplum yet
+    <span class="note">Center = careVet UI · Medplum = receipts + deep links only</span>
+  </div>
+
+  <div class="top">
+    <div class="brand"><span class="mark">C</span> careVet <span class="sub">· clinic operating layer</span></div>
+    <div class="modes">
+      <button type="button" class="on" id="modeDuring">During call</button>
+      <button type="button" id="modeAfter">After call</button>
+    </div>
+    <button type="button" class="btn" id="btsToggle">Behind the scenes</button>
+  </div>
+
+  <div class="cols bts-on" id="cols">
+    <aside class="rail">
+      <h3>Shared record</h3>
+      <div class="hint">Fed by Medplum reads. Your UI — not the Medplum admin app.</div>
+      <div class="card">
+        <div class="pt-name">Luna</div>
+        <div class="pt-meta">6 yr · FS German Shepherd · 28.6 kg</div>
+        <span class="badge">Patient/14cbf…</span>
+        <div class="kv"><span class="k">Owner</span><span class="v">Maria Gonzalez</span></div>
+        <div class="kv"><span class="k">Weight</span><span class="v">28.6 kg</span></div>
+        <div class="kv" id="rabiesRow"><span class="k">Rabies</span><span class="v flag">OVERDUE</span></div>
+        <div class="kv" id="apptRow" hidden><span class="k">Appointment</span><span class="v">Tomorrow 10:30</span></div>
+        <div id="ctxFields"></div>
+      </div>
+    </aside>
+
+    <section class="stage">
+      <div class="stage-head">
+        <span class="k" id="sceneK">Live</span>
+        <h2 id="sceneTitle">Intake call</h2>
+        <div class="derive" id="sceneDerive">phone is the input surface</div>
+      </div>
+
+      <div id="viewDuring" class="during">
+        <div class="phone">
+          <div class="status"><span>Haley · Urbana Paws</span><span>02:14</span></div>
+          <div class="who"><div class="nm">Maria Gonzalez</div><div class="sub">calling about Luna</div></div>
+          <div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tr" id="tr">
+            <div class="bubble maria">Hi, it's Maria. Luna's been limping on her back left leg since yesterday evening.</div>
+            <div class="bubble haley">Is she putting any weight on that leg, and is she eating normally?</div>
+            <div class="bubble maria hl" id="hlLine">She jumped off the couch and yelped. She's putting some weight on it but not much.</div>
+            <div class="bubble maria">She's still eating fine and drinking normally. No vomiting.</div>
+          </div>
+        </div>
+        <div class="livebox">
+          <h4>Live intake fields</h4>
+          <div class="live-item show"><div class="lab">Complaint <span class="src">stated</span></div><div class="val">Lameness</div></div>
+          <div class="live-item show" style="animation-delay:.15s"><div class="lab">Limb <span class="src">stated</span></div><div class="val">Left hind</div></div>
+          <div class="live-item show" style="animation-delay:.3s"><div class="lab">Onset <span class="src">stated</span></div><div class="val">Yesterday evening</div></div>
+          <div class="live-item show" style="animation-delay:.45s"><div class="lab">Weight bearing <span class="src">stated</span></div><div class="val">Partial</div></div>
+        </div>
+      </div>
+
+      <div id="viewAfter" class="after" hidden>
+        <div class="tr-rail">
+          <span class="lab">Call source</span>
+          <span class="snip">“Luna's been limping on her back left leg since yesterday evening…”</span>
+          <a href="https://app.medplum.com/Communication/84109c58-0eb9-4549-bd03-9f5d791217cc" target="_blank" rel="noreferrer">Communication/84109…</a>
+        </div>
+        <div class="visit">
+          <div class="soap-banner">
+            <div>
+              <div class="t">SOAP draft</div>
+              <div class="s">AI-generated · Veterinarian review required</div>
+            </div>
+            <span class="pill" id="draftPill">DRAFT</span>
+          </div>
+          <div class="soap-grid">
+            <div class="soap-block"><div class="lab">Subjective</div><p>Acute left hind lameness since yesterday evening after jumping from the couch. Partial weight bearing. Appetite and water normal.</p></div>
+            <div class="soap-block"><div class="lab">Objective</div><p>BW 28.6 kg · awaiting exam vitals. Grade TBD at walk.</p></div>
+            <div class="soap-block"><div class="lab">Assessment</div><p>Acute LH lameness post-trauma. r/o soft-tissue strain vs partial CCL. Rabies lapsed.</p></div>
+            <div class="soap-block plan"><div class="lab">Plan</div><p>Radiograph left stifle · Carprofen · Administer rabies · Recheck 12 days</p></div>
+          </div>
+          <div class="sign">
+            <button type="button" id="signBtn">Sign and release</button>
+            <div class="msg" id="signMsg">Dr. Chen reviews, then Provenance moves draft → approved. No phone UI on this screen.</div>
+          </div>
+          <div class="fanout" id="fanout" hidden>
+            <div class="fan-lab">Approved plan → Medplum resources</div>
+            <div class="fan-chips">
+              <div class="fan-chip"><span class="rt">MedicationRequest</span><span class="id">…/rx-carprofen</span><span class="d">Carprofen 75 mg × 20</span></div>
+              <div class="fan-chip"><span class="rt">ServiceRequest</span><span class="id">…/rad-stifle</span><span class="d">Radiograph left stifle</span></div>
+              <div class="fan-chip"><span class="rt">Task</span><span class="id">…/vax-rabies</span><span class="d">Administer rabies</span></div>
+              <div class="fan-chip"><span class="rt">Appointment</span><span class="id">…/recheck-12d</span><span class="d">Recheck in 12 days</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="bts" id="bts">
+      <div class="bts-head">
+        <div>
+          <h3>Behind the scenes</h3>
+          <p>Receipts only · Medplum I/O · not a second chart</p>
+        </div>
+        <button type="button" class="bts-close" id="btsClose" aria-label="Close">✕</button>
+      </div>
+      <div class="receipts" id="receipts"></div>
+    </aside>
+  </div>
+</div>
+<button type="button" class="edge" id="edgeTab" hidden>Behind the scenes</button>
+
+<script>
+(function(){
+  var during = true, bts = true, signed = false;
+  var cols = document.getElementById('cols');
+  var btsEl = document.getElementById('bts');
+  var edge = document.getElementById('edgeTab');
+  var toggle = document.getElementById('btsToggle');
+  var receipts = document.getElementById('receipts');
+
+  var DURING_RX = [
+    {g:'Scene 1 · Intake', items:[
+      {op:'READ', id:'Patient/14cbf670…', dim:'Luna'},
+      {op:'READ', id:'RelatedPerson/…', dim:'Maria'},
+      {op:'READ', id:'Immunization/004b…', dim:'rabies OVERDUE'},
+      {op:'READ', id:'Observation/73b5…', dim:'weight 28.6 kg'},
+      {op:'CREATE', id:'Observation/122b…', dim:'complaint · stated'},
+      {op:'CREATE', id:'Appointment/6263…', dim:'10:30 Dr. Chen'},
+    ]}
+  ];
+  var AFTER_RX = [
+    {g:'Scene 1 · sealed', items:[
+      {op:'CREATE', id:'Communication/84109…', dim:'call transcript'},
+      {op:'CREATE', id:'Appointment/6263…', dim:'booked'},
+    ]},
+    {g:'Scene 2 · SOAP', items:[
+      {op:'CREATE', id:'Encounter/…', dim:'visit'},
+      {op:'CREATE', id:'ClinicalImpression/…', dim:'draft'},
+      {op:'CREATE', id:'Provenance/…', dim: signed ? 'signed by Dr. Chen' : 'pending signature'},
+    ]}
+  ];
+
+  function renderReceipts(){
+    var data = during ? DURING_RX : AFTER_RX;
+    receipts.innerHTML = data.map(function(g){
+      return '<div class="group">'+g.g+'</div>' + g.items.map(function(it){
+        return '<div class="rx"><span class="op">'+it.op+'</span><div><a href="#">'+it.id+'</a><div class="dim">'+it.dim+'</div></div></div>';
+      }).join('');
+    }).join('');
+  }
+
+  function setBts(on){
+    bts = on;
+    cols.className = 'cols ' + (on ? 'bts-on' : 'bts-off');
+    btsEl.style.display = on ? 'flex' : 'none';
+    edge.hidden = on;
+    toggle.className = 'btn' + (on ? ' on' : '');
+    toggle.textContent = on ? 'Hide behind the scenes' : 'Behind the scenes';
+  }
+
+  function setMode(isDuring){
+    during = isDuring;
+    var d = document.getElementById('viewDuring');
+    var a = document.getElementById('viewAfter');
+    d.hidden = !isDuring;
+    a.hidden = isDuring;
+    d.style.display = isDuring ? 'grid' : 'none';
+    a.style.display = isDuring ? 'none' : 'flex';
+    document.getElementById('modeDuring').className = isDuring ? 'on' : '';
+    document.getElementById('modeAfter').className = isDuring ? '' : 'on';
+    document.getElementById('sceneK').textContent = isDuring ? 'Live' : 'Visit';
+    document.getElementById('sceneTitle').textContent = isDuring ? 'Intake call' : 'SOAP draft';
+    document.getElementById('sceneDerive').textContent = isDuring ? 'phone is the input surface' : 'visit workspace · no phone';
+    document.getElementById('apptRow').hidden = isDuring;
+    var ctx = document.getElementById('ctxFields');
+    ctx.innerHTML = isDuring
+      ? '<div class="field"><div class="lab">Complaint</div><div class="val">Lameness <span class="src">stated</span></div></div><div class="field"><div class="lab">Limb</div><div class="val">Left hind <span class="src">stated</span></div></div>'
+      : '<div class="field"><div class="lab">Complaint</div><div class="val">Lameness <span class="src">stated</span></div></div><div class="field"><div class="lab">Triage</div><div class="val">ROUTINE</div></div>';
+    renderReceipts();
+  }
+
+  document.getElementById('modeDuring').onclick = function(){ setMode(true); };
+  document.getElementById('modeAfter').onclick = function(){ setMode(false); };
+  toggle.onclick = function(){ setBts(!bts); };
+  document.getElementById('btsClose').onclick = function(){ setBts(false); };
+  edge.onclick = function(){ setBts(true); };
+
+  document.getElementById('signBtn').onclick = function(){
+    signed = true;
+    document.body.classList.add('after-signed');
+    document.getElementById('draftPill').textContent = 'SIGNED';
+    document.getElementById('signBtn').disabled = true;
+    document.getElementById('signMsg').className = 'msg ok';
+    document.getElementById('signMsg').textContent = 'Provenance written · plan may fan out (Scenes 3–7).';
+    document.getElementById('fanout').hidden = false;
+    document.getElementById('rabiesRow').innerHTML = '<span class="k">Rabies</span><span class="v flag">OVERDUE · flagged for visit</span>';
+    renderReceipts();
+  };
+
+  setBts(true);
+  setMode(false); // open on After call so the visit screen is what you see first
+})();
+</script>
+</body>
+</html>

@@ -76,9 +76,6 @@ export default function LivePage() {
           <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-[var(--alert)]" />
           watching the record
         </span>
-        <span className="rounded-sm bg-[#fdf0ef] px-2 py-[3px] text-[10px] font-semibold tracking-wide text-[var(--alert)]">
-          SYNTHETIC PATIENT
-        </span>
         <div className="ml-auto flex items-center gap-2">
           <select
             value={minutes}
@@ -101,13 +98,6 @@ export default function LivePage() {
           )}
         </div>
       </header>
-
-      <p className="mb-6 max-w-[68ch] border-l-2 pl-3 text-[13px] leading-relaxed text-[var(--ink-soft)] rule">
-        Call <span className="mono">+1 571 743 8536</span> and talk to Haley.
-        This page is not listening to the phone. It polls Medplum every 1.5
-        seconds, so what you see here is the record itself changing. If the
-        record is the source of truth, watching it is watching the call.
-      </p>
 
       {error && (
         <div className="mb-5 rounded-md bg-[#fdf0ef] px-3 py-2 text-[12px] text-[var(--alert)]">

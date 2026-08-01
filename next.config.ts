@@ -42,6 +42,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve("."),
   },
+
+  async rewrites() {
+    return [
+      { source: "/vetra-demo", destination: "/vetra-demo/index.html" },
+      { source: "/vetra-demo/", destination: "/vetra-demo/index.html" },
+      { source: "/carevet-preview", destination: "/carevet-preview/index.html" },
+      { source: "/carevet-preview/", destination: "/carevet-preview/index.html" },
+    ];
+  },
 };
 
 export default nextConfig;
