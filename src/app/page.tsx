@@ -68,7 +68,7 @@ export default function Console() {
   return (
     <main className="mx-auto min-h-screen max-w-[1180px] px-5 py-6">
       <header className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="text-[17px] font-semibold tracking-tight">Vetra</h1>
+        <h1 className="text-[17px] font-semibold tracking-tight">careVet</h1>
         <span className="text-[13px] text-[var(--ink-soft)]">
           one case, carried across the workflow, written into Medplum
         </span>
