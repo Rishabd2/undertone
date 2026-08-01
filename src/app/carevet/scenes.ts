@@ -43,6 +43,10 @@ export const SCENES: Scene[] = [
       { at: 2900, e: { type: "ctx", k: "Owner", v: "Maria Gonzalez" } },
       { at: 3400, e: { type: "ctx", k: "Patient", v: "Luna · German Shepherd" } },
       {
+        at: 4600,
+        e: { type: "ev", tag: "MOSS", msg: "moss.dev retrieve → chart index · Luna" },
+      },
+      {
         at: 5000,
         e: {
           type: "ev",
@@ -54,6 +58,14 @@ export const SCENES: Scene[] = [
       { at: 5600, e: { type: "ctx", k: "Complaint", v: "Lameness (stated)" } },
       { at: 6200, e: { type: "ctx", k: "Onset", v: "Yesterday evening (stated)" } },
       { at: 8800, e: { type: "ctx", k: "Weight bearing", v: "Partial (stated)" } },
+      {
+        at: 10200,
+        e: {
+          type: "ev",
+          tag: "MOSS",
+          msg: "moss.dev session → utterance indexed for triage",
+        },
+      },
       {
         at: 11000,
         e: {
@@ -82,7 +94,23 @@ export const SCENES: Scene[] = [
     dur: 15000,
     timeline: [
       { at: 400, e: { type: "ev", tag: "SCRIBE", msg: "scribe.listen → exam in progress" } },
+      {
+        at: 900,
+        e: {
+          type: "ev",
+          tag: "MOSS",
+          msg: "moss.dev retrieve → prior intake + chart for SOAP",
+        },
+      },
       { at: 1200, e: { type: "ctx", k: "Vitals", v: "28.6 kg · T 101.8°F" } },
+      {
+        at: 2800,
+        e: {
+          type: "ev",
+          tag: "MOSS",
+          msg: "moss.dev cite → cruciate risk · no current NSAIDs",
+        },
+      },
       {
         at: 4200,
         e: { type: "ev", tag: "SCRIBE", msg: "Assessment + Plan composed" },

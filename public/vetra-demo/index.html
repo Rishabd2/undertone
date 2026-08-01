@@ -252,6 +252,7 @@ body.seeking *{animation:none !important; transition:none !important;}
 .t-comp{background:rgba(200,138,160,.2); color:#e6b3c6;}
 .t-bill{background:rgba(224,112,74,.2); color:#f0a98f;}
 .t-ctx{background:rgba(127,184,160,.16); color:#a8cfbe;}
+.t-moss{background:rgba(99,180,255,.2); color:#8ec8ff;}
 
 .btn.on{background:var(--coral); color:#fff; border-color:var(--coral);}
 .ev .msg a{color:#a6cbf0; text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px;}
@@ -311,7 +312,7 @@ body.seeking *{animation:none !important; transition:none !important;}
       <div class="ag-head"><span class="t">Behind the scenes</span><span class="live"><span class="d"></span><span id="streamMode">Medplum</span></span></div>
       <div class="ag-sub" id="agSub">Every event links into Luna&rsquo;s Medplum record. Click any resource.</div>
       <div class="stream" id="stream"></div>
-      <div class="ag-foot">careVet agent team · shared session · <b>human approves anything clinical</b></div>
+      <div class="ag-foot">careVet · Medplum · Moss · Deepgram · Vapi · <b>human approves anything clinical</b></div>
     </aside>
   </div>
 </div>
@@ -450,12 +451,14 @@ body.seeking *{animation:none !important; transition:none !important;}
         {at:3400, e:ctx('Patient','Luna · 6y FS German Shepherd')},
         {at:3900, e:ctx('Status','Returning patient')},
         {at:5000, e:ev('RECALL','t-recall','context.retrieve &rarr; last visit Jul 1 · 28.6 kg · rabies <span class="fl">OVERDUE</span>')},
+        {at:5200, e:ev('MOSS','t-moss','moss.dev retrieve &rarr; chart index · Luna')},
         {at:5600, e:ctx('Complaint','Lameness, hind left <span class="src">stated</span>')},
         {at:6200, e:ctx('Onset','Yesterday evening <span class="src">stated</span>')},
         {at:6800, e:ctx('Care gap','<span class="flag">Rabies overdue</span> · flag for visit')},
         {at:8800, e:ctx('Weight bearing','Partial <span class="src">stated</span>')},
         {at:9200, e:ctx('Appetite','Normal, no vomiting <span class="src">stated</span>')},
         {at:9800, e:ctx('Duration','&lt;48h <span class="inf">inferred</span>')},
+        {at:10200, e:ev('MOSS','t-moss','moss.dev session &rarr; utterance indexed for triage')},
         {at:10600, e:ev('TRIAGE','t-triage','triage.rule &rarr; R1 non-weight-bearing <span class="fl">not met</span>')},
         {at:11000, e:ev('TRIAGE','t-triage','triage.rule &rarr; <span class="hl">R2 partial, &lt;48h</span> &rarr; <span class="gd">ROUTINE</span> · agent may book')},
         {at:11400, e:ctx('Triage','ROUTINE · 30 min exam')},
@@ -466,8 +469,10 @@ body.seeking *{animation:none !important; transition:none !important;}
     { key:'soap', label:'Exam · SOAP', stage:'Exam', dur:15000,
       timeline:[
         {at:400, e:ev('SCRIBE','t-scribe','scribe.listen &rarr; exam in progress')},
+        {at:900, e:ev('MOSS','t-moss','moss.dev retrieve &rarr; prior intake + chart for SOAP')},
         {at:1200, e:ctx('Vitals','28.6 kg · T 101.8°F')},
         {at:2000, e:ev('SCRIBE','t-scribe','scribe.compose &rarr; <span class="hl">Subjective</span> + <span class="hl">Objective</span>')},
+        {at:2800, e:ev('MOSS','t-moss','moss.dev cite &rarr; cruciate risk note · no current NSAIDs')},
         {at:3400, e:ctx('Assessment','Acute LH lameness · r/o partial CCL tear')},
         {at:4200, e:ev('SCRIBE','t-scribe','scribe.compose &rarr; <span class="hl">Assessment</span> + <span class="hl">Plan</span>')},
         {at:5200, e:ctx('Plan','Rad · carprofen · rabies · recheck 12 d')},
@@ -765,13 +770,16 @@ body.seeking *{animation:none !important; transition:none !important;}
       {at:2900, e:{type:'ctx', k:'Owner', v:'Maria Gonzalez', link:'owner'}},
       {at:3400, e:{type:'ctx', k:'Patient', v:'Luna · German Shepherd', link:'patient'}},
       {at:3900, e:ctx('Status','Returning patient')},
+      {at:4600, e:{type:'ev', tag:'MOSS', cls:'t-moss', msg:'moss.dev retrieve &rarr; chart index · Luna history'}},
       {at:5000, e:{type:'ev', tag:'RECALL', cls:'t-recall', msg:'context.retrieve &rarr; chart · rabies <span class="fl">OVERDUE</span>', link:'rabies'}},
+      {at:5200, e:{type:'ev', tag:'MOSS', cls:'t-moss', msg:'moss.dev hit &rarr; weight + breed risk + rabies note'}},
       {at:5600, e:{type:'ctx', k:'Complaint', v:'Lameness', link:'field:Presenting complaint', plain:'Lameness'}},
       {at:6200, e:{type:'ctx', k:'Onset', v:'Yesterday evening', link:'field:Onset', plain:'Yesterday evening'}},
       {at:6800, e:{type:'ctx', k:'Care gap', v:'<span class="flag">Rabies overdue</span>', link:'rabies'}},
       {at:8800, e:{type:'ctx', k:'Weight bearing', v:'Partial', link:'field:Weight bearing', plain:'Partial'}},
       {at:9200, e:{type:'ctx', k:'Appetite', v:'Normal', link:'field:Appetite and water', plain:'Normal'}},
       {at:9800, e:{type:'ctx', k:'Duration', v:'&lt;48h', link:'field:Duration', plain:'Approximately 18 hours'}},
+      {at:10200, e:{type:'ev', tag:'MOSS', cls:'t-moss', msg:'moss.dev session index &rarr; utterance embedded for triage'}},
       {at:10600, e:ev('TRIAGE','t-triage','triage.rule &rarr; R1 non-weight-bearing <span class="fl">not met</span>')},
       {at:11000, e:ev('TRIAGE','t-triage','triage.rule &rarr; <span class="hl">R2 partial</span> &rarr; <span class="gd">ROUTINE</span>')},
       {at:11400, e:ctx('Triage','ROUTINE · 30 min exam')},
@@ -797,6 +805,7 @@ body.seeking *{animation:none !important; transition:none !important;}
 
   /* Also link later scenes that touch the record. */
   SCENES[1].timeline.push({at:7000, e:{type:'ev', tag:'MEDPLUM', cls:'t-scribe', msg:'draft note against patient', link:'patient'}});
+  SCENES[1].timeline.push({at:7500, e:{type:'ev', tag:'MOSS', cls:'t-moss', msg:'moss.dev · chart + session indexes steered the note'}});
   SCENES[4].timeline.push({at:5000, e:{type:'ev', tag:'MEDPLUM', cls:'t-comp', msg:'Immunization resource', link:'rabies'}});
   SCENES[6].timeline.push({at:3800, e:{type:'ev', tag:'MEDPLUM', cls:'t-ctx', msg:'same Patient across every scene', link:'patient'}});
 

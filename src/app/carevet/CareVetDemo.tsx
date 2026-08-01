@@ -391,7 +391,7 @@ export function CareVetDemo({ session }: { session: DemoSession }) {
                   Behind the scenes
                 </Title>
                 <Text size="xs" c="dimmed">
-                  Medplum PatientTimeline · toggle anytime
+                  Medplum · Moss · Deepgram · Vapi · toggle anytime
                 </Text>
               </div>
               <button

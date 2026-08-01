@@ -133,7 +133,7 @@ body.after-signed .soap-banner .pill{background:rgba(47,143,91,.15);color:var(--
 <div class="app">
   <div class="banner">
     <b>PREVIEW</b> · feel of the architecture — not wired to Medplum yet
-    <span class="note">Center = careVet UI · Medplum = receipts + deep links only</span>
+    <span class="note">Stack: Medplum · Moss · Deepgram · Vapi · center = careVet UI</span>
   </div>
 
   <div class="top">
@@ -250,11 +250,12 @@ body.after-signed .soap-banner .pill{background:rgba(47,143,91,.15);color:var(--
   var receipts = document.getElementById('receipts');
 
   var DURING_RX = [
-    {g:'Scene 1 · Intake', items:[
+    {g:'Scene 1 · Intake + triage', items:[
       {op:'READ', id:'Patient/14cbf670…', dim:'Luna'},
       {op:'READ', id:'RelatedPerson/…', dim:'Maria'},
+      {op:'MOSS', id:'moss.dev chart index', dim:'retrieve · weight + rabies + breed risk'},
       {op:'READ', id:'Immunization/004b…', dim:'rabies OVERDUE'},
-      {op:'READ', id:'Observation/73b5…', dim:'weight 28.6 kg'},
+      {op:'MOSS', id:'moss.dev session index', dim:'utterance embedded for triage'},
       {op:'CREATE', id:'Observation/122b…', dim:'complaint · stated'},
       {op:'CREATE', id:'Appointment/6263…', dim:'10:30 Dr. Chen'},
     ]}
@@ -265,6 +266,8 @@ body.after-signed .soap-banner .pill{background:rgba(47,143,91,.15);color:var(--
       {op:'CREATE', id:'Appointment/6263…', dim:'booked'},
     ]},
     {g:'Scene 2 · SOAP', items:[
+      {op:'MOSS', id:'moss.dev retrieve', dim:'prior intake + chart for SOAP'},
+      {op:'MOSS', id:'moss.dev cite', dim:'cruciate risk · no current NSAIDs'},
       {op:'CREATE', id:'Encounter/…', dim:'visit'},
       {op:'CREATE', id:'ClinicalImpression/…', dim:'draft'},
       {op:'CREATE', id:'Provenance/…', dim: signed ? 'signed by Dr. Chen' : 'pending signature'},
