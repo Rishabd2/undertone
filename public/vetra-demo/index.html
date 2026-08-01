@@ -151,7 +151,9 @@ body.seeking *{animation:none !important; transition:none !important;}
 .line.vetra{background:var(--green-700); color:var(--cream); align-self:flex-end;}
 .line.sys{align-self:center; font-family:var(--mono); font-size:11px; background:rgba(217,166,76,.16); border:1px solid rgba(217,166,76,.4); color:#7a5a12; padding:6px 11px;}
 .line.rec{background:var(--paper); border:1px solid var(--line); align-self:flex-start; max-width:94%;}
-.line.rec .who{display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--green-500); margin-bottom:3px;}
+.line.vetra .who,.line.caller .who,.line.rec .who{display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.04em; text-transform:uppercase; margin-bottom:3px;}
+.line.vetra .who{color:rgba(250,247,241,.72);}
+.line.caller .who,.line.rec .who{color:var(--green-500);}
 .patient-card{background:var(--paper); border:1px solid var(--line); border-radius:13px; padding:14px; height:max-content;}
 .pc-photo{width:100%; height:74px; border-radius:10px; background:linear-gradient(135deg,#dfa,#7FB8A0); display:grid; place-items:center; font-family:var(--serif); font-size:30px; color:var(--green-900); margin-bottom:10px;}
 .pc-nm{font-family:var(--serif); font-size:17px; font-weight:600;}
@@ -432,17 +434,15 @@ body.seeking *{animation:none !important; transition:none !important;}
   function ev(tag,cls,msg){ return {type:'ev', tag:tag, cls:cls, msg:msg}; }
 
   var SCENES = [
-    { key:'intake', label:'Intake · live call', stage:'Intake', dur:18000,
+    { key:'intake', label:'Intake · live call', stage:'Intake', dur:14000,
+      /* Bare Haley ↔ Maria beats — enough to pitch, not the full call. */
       transcript:[
-        {d:300, t:'sys', x:'Incoming · 2:14 AM · first ring'},
-        {d:1000, t:'vetra', x:'Urbana Paws, this is Haley. How can I help you and Luna tonight?'},
-        {d:2600, t:'caller', x:"Hi, it's Maria. Luna's been limping on her back left leg since yesterday evening. She jumped off the couch and yelped."},
-        {d:5000, t:'sys', x:'Caller matched from number · returning patient'},
-        {d:6400, t:'vetra', x:'Is she putting any weight on that leg, and is she eating normally?'},
-        {d:8400, t:'caller', x:"Some weight, not much. She's eating fine, no vomiting."},
-        {d:10400, t:'vetra', x:"That doesn't need the emergency line tonight. Dr. Chen has 10:30 tomorrow morning. Shall I book her?"},
-        {d:12600, t:'caller', x:'Yes please, thank you.'},
-        {d:13800, t:'sys', x:'Booked 10:30 AM · SMS confirmation sent'}
+        {d:400, t:'vetra', who:'Haley · careVet', x:'Urbana Paws, this is Haley. How can I help you and Luna tonight?'},
+        {d:1800, t:'caller', who:'Owner · Maria', x:"Hi, it's Maria. Luna's been limping on her back left leg since yesterday evening."},
+        {d:3600, t:'vetra', who:'Haley · careVet', x:'What happened, and is she putting any weight on that leg?'},
+        {d:5200, t:'caller', who:'Owner · Maria', x:"She jumped off the couch and yelped. She's putting some weight on it but not much."},
+        {d:7000, t:'vetra', who:'Haley · careVet', x:'Is she eating and drinking normally?'},
+        {d:8600, t:'caller', who:'Owner · Maria', x:"She's still eating fine and drinking normally. No vomiting."}
       ],
       timeline:[
         {at:600, e:ev('FRONTDESK','t-front','call.answer <span class="hl">first ring</span> · 2:14 AM')},
@@ -638,6 +638,34 @@ body.seeking *{animation:none !important; transition:none !important;}
     }
   }
 
+  /* Agent prompts that pair with the known 3 owner replies from the intake loop. */
+  var INTAKE_AGENT_QS = [
+    'Urbana Paws, this is Haley. How can I help you and Luna tonight?',
+    'What happened, and is she putting any weight on that leg?',
+    'Is she eating and drinking normally?'
+  ];
+
+  function bareIntakeTurns(ownerLines){
+    var turns = [];
+    var n = Math.min(ownerLines.length, INTAKE_AGENT_QS.length);
+    for(var i = 0; i < n; i++){
+      turns.push({ t:'vetra', who:'Haley · careVet', x: INTAKE_AGENT_QS[i] });
+      turns.push({ t:'caller', who:'Owner · Maria', x: String(ownerLines[i]) });
+    }
+    return turns;
+  }
+
+  function appendTranscriptLine(body, turn){
+    var div = document.createElement('div');
+    div.className = 'line ' + turn.t;
+    var who = turn.who
+      ? '<span class="who">'+turn.who+'</span>'
+      : '';
+    div.innerHTML = who + String(turn.x).replace(/</g,'&lt;');
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+  }
+
   function paintRecordedTranscript(){
     var body = document.getElementById('trBody');
     var a = document.getElementById('trCommLink');
@@ -655,21 +683,14 @@ body.seeking *{animation:none !important; transition:none !important;}
       }
     }
     if(!lines) return false;
-    if(derive) derive.innerHTML = 'from ' + link(comm.url, comm.reference);
+    if(derive) derive.innerHTML = 'from ' + link(comm.url, comm.reference) + ' · bare Q&amp;A';
     body.innerHTML = '';
-    var sys = document.createElement('div');
-    sys.className = 'line sys';
-    sys.innerHTML = 'Replay · stored call record · ' + link(comm.url, comm.reference);
-    body.appendChild(sys);
-    lines.forEach(function(text, i){
+    var turns = bareIntakeTurns(lines.slice(0, 3));
+    turns.forEach(function(turn, i){
       trTimers.push(setTimeout(function(){
         if(!document.getElementById('trBody')) return;
-        var div = document.createElement('div');
-        div.className = 'line rec';
-        div.innerHTML = '<span class="who">Owner · Maria</span>' + String(text).replace(/</g,'&lt;');
-        body.appendChild(div);
-        body.scrollTop = body.scrollHeight;
-      }, 400 + i * 900));
+        appendTranscriptLine(body, turn);
+      }, 350 + i * 700));
     });
     return true;
   }
@@ -697,10 +718,7 @@ body.seeking *{animation:none !important; transition:none !important;}
       sc.transcript.forEach(function(l){
         trTimers.push(setTimeout(function(){
           if(!tr) return;
-          var div = document.createElement('div');
-          div.className = 'line ' + l.t;
-          div.innerHTML = l.x;
-          tr.appendChild(div); tr.scrollTop = tr.scrollHeight;
+          appendTranscriptLine(tr, l);
         }, l.d));
       });
     }
