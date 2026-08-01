@@ -106,17 +106,6 @@ export default function Console() {
         </div>
       </header>
 
-      <p className="mb-6 max-w-[70ch] border-l-2 pl-3 text-[13px] leading-relaxed text-[var(--ink-soft)] rule">
-        This ran against a self-hosted open-source PIMS before. That PIMS made{" "}
-        <code className="mono text-[12px]">source</code> mandatory on every write,
-        echoed it back, emitted it on the webhook, and then had no column to store
-        it in. Tomorrow you could not tell an agent-written note from a
-        clinician&apos;s. FHIR has had{" "}
-        <code className="mono text-[12px]">Provenance</code> as a first-class
-        resource the entire time, so the record moved to Medplum. Every id below is
-        a link into it.
-      </p>
-
       {error && (
         <div className="mb-6 rounded-md bg-[#fdf0ef] px-3 py-2 text-[12px] text-[var(--alert)]">
           {error}
