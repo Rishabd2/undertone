@@ -1,4 +1,4 @@
-import { MossClient, type SessionIndex } from "@moss-dev/moss";
+import type { MossClient, SessionIndex } from "@moss-dev/moss";
 import { env } from "./env";
 import { chartIndexName, sessionIndexName } from "./case";
 
@@ -34,15 +34,21 @@ export type RetrievalResult = {
 
 let clientPromise: Promise<MossClient> | undefined;
 
+/**
+ * Moss ships a native Rust binding. Importing it at module scope makes the
+ * Next build fail while collecting page data, because the build environment
+ * loads route modules without being able to resolve the platform binary. So the
+ * import happens on first use, at runtime, where the right binary is present.
+ */
 export function getMoss(): Promise<MossClient> {
   if (!clientPromise) {
-    clientPromise = (async () =>
-      new MossClient(env.moss.projectId, env.moss.projectKey))().catch(
-      (err) => {
-        clientPromise = undefined;
-        throw err;
-      },
-    );
+    clientPromise = (async () => {
+      const { MossClient: Client } = await import("@moss-dev/moss");
+      return new Client(env.moss.projectId, env.moss.projectKey);
+    })().catch((err) => {
+      clientPromise = undefined;
+      throw err;
+    });
   }
   return clientPromise;
 }
