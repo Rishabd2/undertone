@@ -36,6 +36,21 @@ export const env = {
       return required("DEEPGRAM_API_KEY");
     },
   },
+  vapi: {
+    get apiKey() {
+      return required("VAPI_API_KEY");
+    },
+    get assistantId() {
+      return optional("VAPI_ASSISTANT_ID");
+    },
+    get phoneNumberId() {
+      return optional("VAPI_PHONE_NUMBER_ID");
+    },
+    /** Public base URL Vapi posts tool calls to. Must be reachable from the internet. */
+    get serverUrl() {
+      return optional("PUBLIC_BASE_URL");
+    },
+  },
   moss: {
     get projectId() {
       return required("MOSS_PROJECT_ID");
@@ -73,6 +88,7 @@ export function configuredPlatforms(): Record<string, boolean> {
       process.env.MEDPLUM_CLIENT_ID && process.env.MEDPLUM_CLIENT_SECRET,
     ),
     deepgram: Boolean(process.env.DEEPGRAM_API_KEY),
+    vapi: Boolean(process.env.VAPI_API_KEY),
     moss: Boolean(process.env.MOSS_PROJECT_ID && process.env.MOSS_PROJECT_KEY),
     anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
     stedi: Boolean(process.env.STEDI_API_KEY),

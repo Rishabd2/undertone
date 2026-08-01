@@ -54,12 +54,12 @@ const checks: Check[] = [
     },
   },
   {
-    name: "Deepgram",
+    name: "Vapi",
     run: async () => {
-      const { grantToken, LISTEN_MODEL } = await import("../src/lib/deepgram");
-      const { accessToken, expiresIn } = await grantToken(30);
-      if (!accessToken) throw new Error("no access_token returned");
-      return `token minted, ${expiresIn}s ttl · model ${LISTEN_MODEL}`;
+      const { listAssistants, keytermCount } = await import("../src/lib/vapi");
+      const assistants = (await listAssistants()) as unknown as unknown[];
+      const count = Array.isArray(assistants) ? assistants.length : 0;
+      return `authenticated · ${count} assistant(s) · deepgram nova-3 with ${keytermCount()} chart keyterms`;
     },
   },
   {
@@ -71,6 +71,8 @@ const checks: Check[] = [
       return `project authenticated${token ? "" : " (no token payload)"}`;
     },
   },
+  // Optional: the model runs inside Vapi, so this only matters for the local
+  // /voice console and any server-side agent turn.
   {
     name: "Anthropic",
     run: async () => {

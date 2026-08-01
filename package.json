@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "validate": "tsx scripts/validate-fhir.ts",
     "pipeline": "tsx scripts/pipeline.ts",
-    "smoke": "tsx scripts/smoke-loop.ts"
+    "smoke": "tsx scripts/smoke-loop.ts",
+    "vapi:sync": "tsx scripts/vapi-sync.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

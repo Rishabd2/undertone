@@ -38,7 +38,7 @@ const STAGES: Stage[] = [
   {
     name: "verify",
     script: "scripts/verify-apis.ts",
-    needs: ["medplum", "deepgram", "moss", "anthropic"],
+    needs: ["medplum", "vapi", "moss"],
     why: "every platform answers, with real latency",
   },
   {
@@ -52,6 +52,12 @@ const STAGES: Stage[] = [
     script: "scripts/build-index.ts",
     needs: ["moss"],
     why: "the chart is retrievable in single-digit milliseconds",
+  },
+  {
+    name: "vapi:sync",
+    script: "scripts/vapi-sync.ts",
+    needs: ["vapi"],
+    why: "the assistant exists in Vapi with chart-derived keyterms",
   },
   {
     name: "smoke",
