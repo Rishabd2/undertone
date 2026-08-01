@@ -1,26 +1,74 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #fbfaf8;
+  --card: #ffffff;
+  --ink: #16181c;
+  --ink-soft: #5c6370;
+  --ink-faint: #9aa1ad;
+  --rule: #e6e3dd;
+  --chart: #2f6f5e;
+  --session: #3b5bdb;
+  --acoustic: #9a4f2e;
+  --alert: #b3261e;
+  --stream-bg: #14161a;
+  --stream-ink: #d7dbe0;
+  --stream-faint: #6b7280;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Evidence origin is carried by color, and the same color is used everywhere
+   that origin appears. Source separation has to be visual, not just structural. */
+.origin-chart {
+  color: var(--chart);
+}
+.origin-session {
+  color: var(--session);
+}
+.origin-acoustic {
+  color: var(--acoustic);
+}
+
+.stream {
+  background: var(--stream-bg);
+  color: var(--stream-ink);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
+.rise {
+  animation: rise 0.22s ease-out both;
+}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.live-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
 }
