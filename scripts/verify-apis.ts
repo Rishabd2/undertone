@@ -12,6 +12,10 @@ import { configuredPlatforms } from "../src/lib/env";
 
 type Check = {
   name: string;
+  /** env key that must be present, else the check is skipped rather than failed. */
+  needs: string;
+  /** Optional platforms do not fail the run when they are not configured. */
+  optional?: boolean;
   run: () => Promise<string>;
 };
 
@@ -45,6 +49,7 @@ async function run(check: Check) {
 const checks: Check[] = [
   {
     name: "Medplum",
+    needs: "medplum",
     run: async () => {
       const { getMedplum } = await import("../src/lib/medplum");
       const medplum = await getMedplum();
@@ -55,6 +60,7 @@ const checks: Check[] = [
   },
   {
     name: "Deepgram",
+    needs: "deepgram",
     run: async () => {
       const { grantToken, LISTEN_MODEL } = await import("../src/lib/deepgram");
       const { chartKeyterms } = await import("../src/lib/case");
@@ -65,6 +71,8 @@ const checks: Check[] = [
   },
   {
     name: "Vapi",
+    needs: "vapi",
+    optional: true,
     run: async () => {
       const { listAssistants } = await import("../src/lib/vapi");
       const assistants = (await listAssistants()) as unknown as unknown[];
@@ -74,6 +82,7 @@ const checks: Check[] = [
   },
   {
     name: "Moss",
+    needs: "moss",
     run: async () => {
       const { getMoss } = await import("../src/lib/moss");
       const moss = await getMoss();
@@ -85,6 +94,8 @@ const checks: Check[] = [
   // /voice console and any server-side agent turn.
   {
     name: "Anthropic",
+    needs: "anthropic",
+    optional: true,
     run: async () => {
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -102,6 +113,8 @@ const checks: Check[] = [
   },
   {
     name: "Stedi",
+    needs: "stedi",
+    optional: true,
     run: async () => {
       const { checkEligibility } = await import("../src/lib/stedi");
       // Stedi's documented test payer. Confirm the current id in the portal.
@@ -133,7 +146,24 @@ async function main() {
   );
   console.log("");
 
+  const skipped: string[] = [];
+
   for (const check of checks) {
+    if (!configured[check.needs]) {
+      if (check.optional) {
+        skipped.push(check.name);
+        console.log(`SKIP  ${check.name.padEnd(10)}         not configured, and not required`);
+        continue;
+      }
+      results.push({
+        name: check.name,
+        ok: false,
+        ms: 0,
+        detail: `${check.needs.toUpperCase()} is required and not configured`,
+      });
+      console.log(`FAIL  ${check.name.padEnd(10)}         required, not configured`);
+      continue;
+    }
     await run(check);
     const r = results[results.length - 1];
     const mark = r.ok ? "PASS" : "FAIL";
@@ -145,7 +175,9 @@ async function main() {
   const failed = results.filter((r) => !r.ok);
   console.log("");
   if (failed.length === 0) {
-    console.log(`All ${results.length} platforms answered. Substrate is live.\n`);
+    console.log(
+      `${results.length} required platform(s) answered${skipped.length ? `, ${skipped.length} optional skipped (${skipped.join(", ")})` : ""}. Substrate is live.\n`,
+    );
   } else {
     console.log(
       `${failed.length} of ${results.length} failed: ${failed.map((f) => f.name).join(", ")}\n`,

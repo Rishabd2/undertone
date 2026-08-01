@@ -28,10 +28,13 @@ async function main() {
   await moss.loadIndex(indexName);
 
   // Three probes that must work, because the demo depends on each of them.
+  // These are the three the demo actually depends on. If the first one does not
+  // surface the cruciate note, the agent will not know to ask about the other
+  // hind leg, and the best beat in the call disappears.
   const probes = [
-    "patient is drinking more water than usual and waking up at night",
-    "thyroid medication dose",
-    "family history of heart problems",
+    "limping on her back left leg after jumping off the couch",
+    "is it safe to give her an anti-inflammatory",
+    "is her rabies vaccine up to date",
   ];
 
   console.log("\nProbes\n");
