@@ -38,7 +38,7 @@ const STAGES: Stage[] = [
   {
     name: "verify",
     script: "scripts/verify-apis.ts",
-    needs: ["medplum", "vapi", "moss"],
+    needs: ["medplum", "deepgram", "moss"],
     why: "every platform answers, with real latency",
   },
   {

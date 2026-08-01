@@ -54,12 +54,22 @@ const checks: Check[] = [
     },
   },
   {
+    name: "Deepgram",
+    run: async () => {
+      const { grantToken, LISTEN_MODEL } = await import("../src/lib/deepgram");
+      const { chartKeyterms } = await import("../src/lib/case");
+      const { accessToken, expiresIn } = await grantToken(30);
+      if (!accessToken) throw new Error("no access_token returned");
+      return `token minted, ${expiresIn}s ttl · ${LISTEN_MODEL} · ${chartKeyterms().length} chart keyterms`;
+    },
+  },
+  {
     name: "Vapi",
     run: async () => {
-      const { listAssistants, keytermCount } = await import("../src/lib/vapi");
+      const { listAssistants } = await import("../src/lib/vapi");
       const assistants = (await listAssistants()) as unknown as unknown[];
       const count = Array.isArray(assistants) ? assistants.length : 0;
-      return `authenticated · ${count} assistant(s) · deepgram nova-3 with ${keytermCount()} chart keyterms`;
+      return `authenticated · ${count} assistant(s)`;
     },
   },
   {
