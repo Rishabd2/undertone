@@ -1,208 +1,157 @@
 /**
- * The synthetic case. Everything domain-specific lives here so the demo can be
- * re-pointed at a different patient, or a different species, without touching
- * the agent loop, the retrieval layer, or the FHIR writer.
+ * The case. Everything domain-specific lives here so the loop, the retrieval
+ * layer, and the FHIR writer never need to know what species they are serving.
  *
- * SYNTHETIC PATIENT. No real person. Safe to display, record, and submit.
+ * SYNTHETIC PATIENT. No real animal, no real client. Safe to display and record.
+ *
+ * This replaces the OpenVPM PIMS that the earlier version of this demo ran
+ * against. Two findings from that build are the reason:
+ *
+ *   1. OpenVPM makes `source` mandatory on a SOAP write, echoes it back, and
+ *      emits it on the webhook, but `soap_notes` has no column for it. The
+ *      provenance is required in transport and dropped in the record. Tomorrow
+ *      you cannot tell an agent-written note from a clinician's.
+ *   2. The integrator API cannot read the practice timezone. Appointments demand
+ *      an absolute timestamp but `practices` is not exposed on /api/v1.
+ *
+ * FHIR has had Provenance as a first-class resource the entire time, and
+ * Medplum gives it to us with a search index on it. That is the argument.
  */
 
 export type ChartEntry = {
   id: string;
-  /** Maps to the FHIR resource this becomes in Medplum. */
   resourceType:
     | "Condition"
     | "MedicationStatement"
     | "AllergyIntolerance"
     | "Observation"
+    | "Immunization"
     | "DocumentReference"
     | "Encounter";
-  /** ISO date. Drives Moss recency filtering and the chart timeline. */
   date: string;
-  /** Short label for the UI. */
   label: string;
-  /** The text Moss embeds. Written as a clinician would say it, not as JSON. */
+  /** The text Moss embeds. Written as a vet would say it, not as JSON. */
   text: string;
-  /** Coarse bucket used for metadata filtering. */
-  category: "problem" | "medication" | "allergy" | "vital" | "lab" | "note";
+  category: "problem" | "medication" | "allergy" | "vital" | "lab" | "immunization" | "note";
   /** Terms worth priming the speech recognizer with, if any. */
   keyterms?: string[];
 };
 
+/** The animal. FHIR calls it a Patient, and the animal extension says which kind. */
 export const PATIENT = {
-  id: "undertone-synthetic-001",
-  givenName: "Dana",
-  familyName: "Whitfield",
-  /** Stated by the patient and recorded in the chart. Not inferred from the name. */
-  pronouns: "she/her",
-  gender: "female" as const,
-  birthDate: "1972-03-14",
-  ageYears: 54,
-  mrn: "UT-000001",
-  phone: "+15551230144",
-  /** Shown on screen at all times. Non-negotiable rule 6. */
+  id: "vetra-synthetic-luna",
+  name: "Luna",
+  /** The owner is the informant. The patient cannot self-report. */
+  ownerName: "Maria Gonzalez",
+  ownerPhone: "+15550101002",
+  species: { code: "448771007", display: "Canis lupus familiaris", text: "Dog" },
+  breed: { text: "German Shepherd Dog" },
+  genderStatus: { code: "spayed", display: "Spayed" },
+  sex: "female" as const,
+  birthDate: "2020-04-18",
+  ageYears: 6,
+  weightKg: 28.6,
+  mrn: "VETRA-LUNA-001",
   banner: "SYNTHETIC PATIENT",
 } as const;
 
+export const CLINIC = {
+  name: "Neighborhood Veterinary",
+  timezone: "America/New_York",
+  clinician: "Dr. Elaine Chen",
+  frontDesk: "Morgan Bailey",
+} as const;
+
 export const VISIT = {
-  reasonForVisit: "Fatigue and shortness of breath on exertion, about 3 weeks",
-  /** The appointment the pre-visit intake is happening ahead of. */
-  scheduledFor: "today, 2:40pm",
-  clinician: "Dr. Amara Osei",
-  clinicianRole: "Primary care",
+  reasonForVisit: "Acute left hind lameness since yesterday evening",
+  presentingConcern:
+    "Jumped off the couch, audible yelp, partial weight bearing since",
+  clinician: CLINIC.clinician,
+  clinicianRole: "Small animal general practice",
+  scheduledFor: "tomorrow morning",
 } as const;
 
 /**
- * The chart. This is seeded into Medplum as FHIR and, separately, embedded into
- * the Moss cloud index. Both readers see the same source of truth.
+ * The chart the clinic already holds. Seeded into Medplum as FHIR and embedded
+ * into the Moss index. Both readers see the same source of truth.
  */
 export const CHART: ChartEntry[] = [
   {
-    id: "cond-hypothyroid",
-    resourceType: "Condition",
-    date: "2019-06-11",
-    label: "Hypothyroidism",
-    text: "Hypothyroidism, diagnosed June 2019, managed with levothyroxine replacement. Stable on recheck through 2024.",
-    category: "problem",
-    keyterms: ["hypothyroidism", "levothyroxine"],
-  },
-  {
-    id: "cond-prediabetes",
-    resourceType: "Condition",
-    date: "2023-09-02",
-    label: "Prediabetes",
-    text: "Prediabetes, hemoglobin A1c 6.1 percent in September 2023. Lifestyle counseling given. Metformin started 2024 for glycemic control.",
-    category: "problem",
-    keyterms: ["prediabetes", "hemoglobin A1c", "metformin"],
-  },
-  {
-    id: "med-levothyroxine",
-    resourceType: "MedicationStatement",
-    date: "2025-11-04",
-    label: "Levothyroxine 88 mcg daily",
-    text: "Levothyroxine 88 micrograms by mouth once daily, taken in the morning on an empty stomach. Dose last adjusted November 2025.",
-    category: "medication",
-    keyterms: ["levothyroxine"],
-  },
-  {
-    id: "med-metformin",
-    resourceType: "MedicationStatement",
-    date: "2024-02-19",
-    label: "Metformin 500 mg twice daily",
-    text: "Metformin 500 milligrams by mouth twice daily with meals. Tolerated without gastrointestinal upset.",
-    category: "medication",
-    keyterms: ["metformin"],
-  },
-  {
-    id: "med-lisinopril",
-    resourceType: "MedicationStatement",
-    date: "2025-01-08",
-    label: "Lisinopril 10 mg daily",
-    text: "Lisinopril 10 milligrams by mouth once daily for blood pressure. Started January 2025.",
-    category: "medication",
-    keyterms: ["lisinopril"],
-  },
-  {
-    id: "med-atorvastatin",
-    resourceType: "MedicationStatement",
-    date: "2025-01-08",
-    label: "Atorvastatin 20 mg nightly",
-    text: "Atorvastatin 20 milligrams by mouth at bedtime for lipid management.",
-    category: "medication",
-    keyterms: ["atorvastatin"],
-  },
-  {
-    id: "allergy-smx",
-    resourceType: "AllergyIntolerance",
-    date: "2018-04-22",
-    label: "Sulfamethoxazole, rash",
-    text: "Allergy to sulfamethoxazole. Reaction was a diffuse maculopapular rash, no airway involvement. Documented April 2018.",
-    category: "allergy",
-    keyterms: ["sulfamethoxazole"],
-  },
-  {
-    id: "note-march-fluid",
-    resourceType: "DocumentReference",
-    date: "2026-03-19",
-    label: "March visit note",
-    text: "Patient mentioned drinking noticeably more water over the past several weeks and waking once or twice most nights to urinate. Attributed at the time to increased fluid intake in warm weather. No workup ordered. Advised to mention it again if it persisted.",
-    category: "note",
-    keyterms: ["nocturia", "polydipsia"],
-  },
-  {
-    id: "note-fhx",
-    resourceType: "DocumentReference",
-    date: "2023-09-02",
-    label: "Family history",
-    text: "Family history: father with heart failure diagnosed in his late fifties. Mother with hypothyroidism. No known family history of malignancy.",
-    category: "note",
-    keyterms: ["heart failure"],
-  },
-  {
-    id: "obs-tsh-2026-03",
+    id: "obs-weight-2026-07",
     resourceType: "Observation",
-    date: "2026-03-19",
-    label: "TSH 4.8 mIU/L",
-    text: "Thyroid stimulating hormone 4.8 milli-international units per liter, March 2026. Upper end of the reference range. Prior value 2.9 in 2025.",
-    category: "lab",
-    keyterms: ["TSH", "thyroid stimulating hormone"],
-  },
-  {
-    id: "obs-a1c-2026-03",
-    resourceType: "Observation",
-    date: "2026-03-19",
-    label: "A1c 6.1 percent",
-    text: "Hemoglobin A1c 6.1 percent, March 2026. Unchanged from prior.",
-    category: "lab",
-    keyterms: ["hemoglobin A1c"],
-  },
-  {
-    id: "obs-bp-2026-03",
-    resourceType: "Observation",
-    date: "2026-03-19",
-    label: "BP 138/86",
-    text: "Blood pressure 138 over 86 millimeters of mercury, seated, March 2026.",
+    date: "2026-07-01",
+    label: "Weight 28.6 kg",
+    text: "Body weight 28.6 kilograms at the July 2026 wellness visit. Stable over the last two years.",
     category: "vital",
   },
   {
-    id: "obs-weight-2025-08",
+    id: "obs-weight-2025-07",
     resourceType: "Observation",
-    date: "2025-08-14",
-    label: "Weight 71.2 kg",
-    text: "Body weight 71.2 kilograms, August 2025.",
+    date: "2025-07-14",
+    label: "Weight 28.1 kg",
+    text: "Body weight 28.1 kilograms, July 2025.",
     category: "vital",
   },
   {
-    id: "obs-weight-2026-03",
-    resourceType: "Observation",
-    date: "2026-03-19",
-    label: "Weight 75.4 kg",
-    text: "Body weight 75.4 kilograms, March 2026. Up 4.2 kilograms since August 2025.",
-    category: "vital",
+    id: "imm-rabies-2025",
+    resourceType: "Immunization",
+    date: "2025-07-14",
+    label: "Rabies, 1 year, lapsed",
+    text: "Rabies vaccine, one year product, administered July 2025. Due July 2026 and not yet given. Currently overdue, which matters because a lapsed rabies vaccination changes what the clinic is allowed to do at the visit.",
+    category: "immunization",
+    keyterms: ["rabies"],
   },
   {
-    id: "enc-2026-03",
+    id: "enc-2026-07",
     resourceType: "Encounter",
-    date: "2026-03-19",
-    label: "Routine follow-up, March 2026",
-    text: "Routine follow-up visit March 2026. Reviewed thyroid replacement and glycemic control. Patient reported feeling generally well aside from increased fluid intake.",
+    date: "2026-07-01",
+    label: "Wellness visit, July 2026",
+    text: "Annual wellness examination July 2026. No lameness noted. Body condition score 5 of 9. Owner reported no concerns.",
     category: "note",
+  },
+  {
+    id: "note-cruciate-risk",
+    resourceType: "DocumentReference",
+    date: "2026-07-01",
+    label: "Breed risk note",
+    text: "German Shepherd Dogs are among the breeds reported with increased risk of cranial cruciate ligament disease. Dogs that rupture one cruciate ligament frequently rupture the contralateral one later, so the opposite hind limb is worth asking about whenever one is lame.",
+    category: "note",
+    keyterms: ["cranial cruciate ligament", "cruciate"],
+  },
+  {
+    id: "note-no-meds",
+    resourceType: "DocumentReference",
+    date: "2026-07-01",
+    label: "No current medications",
+    text: "No current medications on file as of July 2026. No corticosteroids, which matters before any NSAID is considered because concurrent NSAID and corticosteroid administration carries gastrointestinal ulceration risk.",
+    category: "medication",
+    keyterms: ["carprofen", "corticosteroid", "NSAID"],
+  },
+  {
+    id: "note-no-allergies",
+    resourceType: "DocumentReference",
+    date: "2026-07-01",
+    label: "No known drug reactions",
+    text: "No known adverse drug reactions recorded.",
+    category: "allergy",
   },
 ];
 
 /**
- * Terms passed to Deepgram as keyterms before the socket opens, so the
- * recognizer is chart-aware. Derived from the chart, not hand-written, which is
- * the point: a different patient primes a different vocabulary.
+ * Terms handed to Deepgram before the socket opens, so the recognizer is chart
+ * aware. Derived from the chart, not hand-written: a different patient primes a
+ * different vocabulary.
  */
 export function chartKeyterms(): string[] {
   const terms = new Set<string>();
   for (const entry of CHART) {
-    for (const term of entry.keyterms ?? []) {
-      terms.add(term);
-    }
+    for (const term of entry.keyterms ?? []) terms.add(term);
   }
-  terms.add(PATIENT.givenName);
-  terms.add(VISIT.clinician.replace(/^Dr\.\s*/, ""));
+  terms.add(PATIENT.name);
+  terms.add(PATIENT.ownerName.split(" ")[0]);
+  terms.add(PATIENT.breed.text);
+  terms.add("lameness");
+  terms.add("stifle");
   return [...terms];
 }
 
@@ -225,6 +174,37 @@ export function chartDocuments() {
   }));
 }
 
-/** Index naming. One cloud index per patient, one session index per visit. */
+/**
+ * Clinic-defined triage rules. The agent does not diagnose; it matches the
+ * clinic's own rules and records which one fired. Carried over unchanged from
+ * the OpenVPM build because the principle did not change with the backend.
+ */
+export const TRIAGE_RULES = [
+  {
+    name: "Non-weight-bearing or suspected fracture",
+    autonomous: false,
+    result: "Same-day appointment, clinician triage before booking",
+    test: (text: string) =>
+      /(not (bearing|putting) any weight|cannot walk|won'?t stand|fracture|bone (is )?(out|sticking))/i.test(
+        text,
+      ),
+  },
+  {
+    name: "Partial weight bearing lameness, otherwise well",
+    autonomous: true,
+    result: "Next available appointment, standard lameness exam",
+    test: (text: string) =>
+      /(limp|lame|favou?ring|holding up|sore leg)/i.test(text) &&
+      /(eating|drinking|some weight|partial|putting.*weight)/i.test(text),
+  },
+  {
+    name: "Systemic signs present",
+    autonomous: false,
+    result: "Clinician review before scheduling",
+    test: (text: string) =>
+      /(vomit|collapse|seizure|not eating|lethargic|pale gums|bloat)/i.test(text),
+  },
+] as const;
+
 export const chartIndexName = (patientId: string) => `chart-${patientId}`;
 export const sessionIndexName = (visitId: string) => `session-${visitId}`;

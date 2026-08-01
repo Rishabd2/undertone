@@ -27,11 +27,15 @@ export async function POST(request: Request) {
         npi: process.env.STEDI_TEST_NPI || "1999999984",
         organizationName: "Undertone Health",
       },
+      // The subscriber is the OWNER, not the animal. Pet insurance does not run
+      // on X12 and there is no veterinary payer on this network, which is the
+      // honest point: animals have no clearinghouse. This call demonstrates the
+      // rail, in test mode, and the UI says exactly that.
       subscriber: {
         memberId: "UT0000000001",
-        firstName: PATIENT.givenName,
-        lastName: PATIENT.familyName,
-        dateOfBirth: PATIENT.birthDate.replace(/-/g, ""),
+        firstName: PATIENT.ownerName.split(" ")[0],
+        lastName: PATIENT.ownerName.split(" ").slice(1).join(" "),
+        dateOfBirth: "19850612",
       },
       serviceTypeCodes: body.serviceTypeCodes ?? ["30"],
     });

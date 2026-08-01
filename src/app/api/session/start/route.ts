@@ -41,9 +41,10 @@ export async function POST() {
       tokenExpiresIn: token.expiresIn,
       listen: { model: listen.model, query: listen.query, keyterms },
       patient: {
-        name: `${PATIENT.givenName} ${PATIENT.familyName}`,
+        name: PATIENT.name,
         age: PATIENT.ageYears,
-        pronouns: PATIENT.pronouns,
+        descriptor: `${PATIENT.genderStatus.display} ${PATIENT.breed.text} · ${PATIENT.weightKg} kg`,
+        owner: PATIENT.ownerName,
         mrn: PATIENT.mrn,
         banner: PATIENT.banner,
       },

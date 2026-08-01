@@ -1,31 +1,55 @@
-# Undertone
+# Vetra on Medplum
 
-A pre-visit voice intake agent. It hears what the patient says and measures how
-they say it, retrieves the chart mid-sentence to choose the next question, and
-hands the clinician a source-separated brief where nothing becomes care without
-approval.
+One veterinary case, carried across the workflow, written into a real FHIR
+record. The phone call becomes a chart, and every field carries a `Provenance`
+saying whether the owner stated it or the agent inferred it.
 
 Built for the Medplum x YC Agentic Healthcare Hackathon, YC SF, 1 August 2026.
+
+## The argument
+
+An earlier version of this demo ran against OpenVPM, a self-hosted open-source
+veterinary PIMS, over its `/api/v1` integrator surface. Two findings from that
+build are the reason this exists:
+
+1. **Provenance is required in transport and lost in the record.** OpenVPM makes
+   `source` mandatory on a SOAP write, echoes it back, and emits it on the
+   webhook. `soap_notes` has no column for it. Tomorrow you cannot tell an
+   agent-written note from a clinician's.
+2. **The integrator API cannot read the practice timezone.** Appointments demand
+   an absolute timestamp but `practices` is not exposed on `/api/v1`. The clinic
+   is `America/New_York`; a laptop in California silently books three hours off.
+
+Both are the same argument: connection is not meaning. FHIR has had `Provenance`
+as a first-class resource the entire time, and Medplum gives it a search index.
+So the record moved.
+
+| The old PIMS | Medplum |
+|---|---|
+| `source` mandatory on write, no column to store it | `Provenance` per field, author is the owner or the agent |
+| The call logged out of band | `Communication`, owner as sender, every utterance a payload |
+| Slots owned by our code | `Slot`, so a double booking is refused by the record |
+| Practice timezone not exposed | an extension on `Organization` |
+| Animals modeled as a bespoke table | `Patient` with the R4 `patient-animal` extension |
+
+Nothing on screen is a simulation of a record. Every resource id the console
+prints is a link into the Medplum app, and a judge can click any of them.
 
 ---
 
 ## Read this first, in the morning
 
-The substrate is built and every platform is wired. What is left is keys, seed,
-and the demo polish.
-
 ```bash
 cd ~/Documents/undertone
 # .env.local already exists, fill in the values
-npm run verify                 # one round trip per platform, with latency
-npm run seed                   # FHIR graph into Medplum
-npm run index                  # Moss chart index, with three probes
-npm run dev                    # http://localhost:3000
+npm run verify     # one round trip per platform, with real latency
+npm run seed       # the clinic and Luna into Medplum as FHIR
+npm run index      # the Moss chart index, with three probes
+npm run dev        # http://localhost:3000
 ```
 
-`npm run verify` is the gate. Do not write UI until all five print PASS. It
-already runs and reports cleanly; right now every line is FAIL because the keys
-are blank, which is the correct behaviour.
+`npm run verify` is the gate. It already runs and reports cleanly; every line is
+FAIL right now because the keys are blank, which is correct behaviour.
 
 ### Keys needed
 
@@ -35,120 +59,93 @@ are blank, which is the correct behaviour.
 | `DEEPGRAM_API_KEY` | console.deepgram.com. Claim the $200 event credit |
 | `MOSS_PROJECT_ID` / `MOSS_PROJECT_KEY` | portal.usemoss.dev |
 | `ANTHROPIC_API_KEY` | console.anthropic.com |
-| `STEDI_API_KEY` | portal.stedi.com, Settings, API Keys |
+| `STEDI_API_KEY` | portal.stedi.com, Settings, API Keys. Optional |
 
-`STEDI_TEST_PAYER_ID` and `STEDI_TEST_NPI` are optional overrides. The defaults
-in `src/app/api/eligibility/route.ts` are a guess and should be confirmed against
-the Stedi portal before the demo.
+---
+
+## The two screens
+
+**`/` is the demo.** Press Run intake. Eight steps execute against Medplum and
+each one prints the resources it wrote, as links. This is the screen to show.
+
+**`/voice` is the live version.** Deepgram `nova-3-medical` on the browser mic,
+Moss retrieval steering the next question, Aura speaking the agent's turn. Use it
+if the room is quiet and the wifi holds. The eight-step run does not depend on it.
+
+## The eight steps
+
+Same workflow as the OpenVPM build, because the workflow did not change. What
+changed is what the record can hold.
+
+| Step | What happens | What it writes |
+|---|---|---|
+| 1 INTAKE | Caller matched from the number that rang | reads `RelatedPerson` to `Patient` |
+| 2 CONTEXT | Species, breed, weight, rabies status | searches by LOINC code, not client-side filtering |
+| 3 STRUCTURE | Typed fields, each tied to its source | `Observation` + `Provenance` per field |
+| 4 TRIAGE | Clinic rules decide, the agent does not diagnose | nothing, deliberately |
+| 5 SCHEDULE | Books against the clinic calendar | `Appointment`, flips `Slot` to busy |
+| 6 WRITE BACK | The owner's words reach the record | `Composition`, stated and inferred in separate sections |
+| 7 THE CALL | The call is itself a resource | `Communication` |
+| 8 THE BOUNDARY | The agent refuses to assert a diagnosis | `AuditEvent` + `Task` with `intent: proposal` |
+
+Step 3 is the one to slow down on. Step 5 refuses the 10:00 slot because the seed
+marks it busy, so the agent is told no by the record and moves to 10:30. Step 8
+is where to stop.
 
 ---
 
 ## What is real and what is seeded
 
-Being precise about this is the point, so it is stated first.
+**Real, at demo time**
 
-**Real, computed or fetched live at demo time**
-
-- Deepgram `nova-3-medical` streaming recognition of your actual voice
-- Keyterms passed to the recognizer, derived from the seeded chart before the
-  socket opens
-- Moss retrieval across two indexes. The latency shown in the UI is the number
-  the Moss SDK reports, not an estimate
-- Prosodic features. Every value is computed by `src/lib/prosody.ts` from the
-  same audio samples Deepgram transcribed. F0 by autocorrelation, jitter and
-  shimmer by the standard local definitions, pause ratio against an adaptive
-  per-window threshold
-- sha256 of each audio window, computed in the browser
-- The FHIR resources written on approval, created in Medplum at that moment
-- The Stedi eligibility response, in test mode
+- Every FHIR resource the loop writes, created in Medplum at that moment
+- The slot refusal. `Slot.status` is read from the record, not from our code
+- Timezone resolution through the extension on `Organization`
+- On `/voice`: Deepgram recognition of your actual voice, keyterms derived from
+  the chart before the socket opens, Moss retrieval with the SDK's own reported
+  latency, and prosodic features computed from the same audio samples
 
 **Seeded ahead of time**
 
-- The patient and her chart. Dana Whitfield is synthetic. The banner says so on
-  every screen
+- Luna, her owner, the clinic, the chart, the calendar. Synthetic, and the banner
+  says so on every screen
 - The Moss chart index, built from the same chart
 
 **Not built**
 
-- Amplifier Health. Only `local-prosody` is implemented, and it is not a mock,
-  it is real DSP
+- A Medplum Bot for the write-back. Writes happen server-side from a route
+  handler, which is honest to say out loud
+- A Medplum `AccessPolicy` denying `Condition` writes to the agent's
+  ClientApplication. Step 8 currently refuses in application code and records the
+  refusal; the AccessPolicy would enforce it server-side
 - Replay mode
-- A Medplum Bot for the write-back. Writes currently happen server-side from a
-  route handler, which is honest to say out loud
+
+**One caveat to check before the pitch.** The Stedi payer id and NPI in
+`src/app/api/eligibility/route.ts` are a guess. Pet insurance does not run on
+X12 and there is no veterinary payer on that network, so the eligibility call is
+a demonstration of a rail animals do not have, in test mode, with the owner as
+subscriber. Say that plainly or leave it out.
 
 ---
 
-## Architecture
+## FHIR modeling notes
 
-```
-browser mic ──┬── 16 kHz linear16 ──► Deepgram nova-3-medical (keyterms primed)
-              │                              │ transcript.final / UtteranceEnd
-              └── 10s float windows          ▼
-                     │              POST /api/agent/turn
-                     │                 1. session index write   (Moss)
-                     ▼                 2. ambient retrieval     (Moss, 2 indexes)
-             local-prosody DSP         3. next question         (Claude)
-                     │                        │
-                     └────────────────────────┤
-                                              ▼
-                                     clinician gate  approve / reject
-                                              │ approved only
-                                              ▼
-                    Medplum: Observation(preliminary) + Provenance
-                             + Task(intent order) + AuditEvent + Composition
-                                              │
-                                              ▼
-                                     Stedi 270/271, test mode
-```
+The things a Medplum reviewer will check.
 
-### Why each platform is used the way it is
-
-**Deepgram.** The chart is read before the socket opens, so the recognizer is
-primed with this patient's medications, problems and allergies. A different
-patient primes a different vocabulary. Deepgram's own endpointing and
-`utterance_end_ms` decide when the patient finished; there is no timer on our
-side. See `src/lib/deepgram.ts` and `src/lib/client/useVisit.ts`.
-
-**Moss.** Two indexes queried in parallel on every finalized utterance, fused
-into one global top-K: the cloud chart index, and a live `SessionIndex` holding
-the conversation so far. Retrieval fires before the model call, not after, so it
-sits on the critical path. Hybrid `alpha` is tuned by query type: symptom
-language is semantic at 0.9, drug and lab names are lexical at 0.3. See
-`src/lib/moss.ts`.
-
-One note on honesty: the SDK at v1.4.1 queries one index per call, so "two
-indexes" means two parallel queries fused, and the UI says exactly that. It does
-not claim a single-call multi-index API, because there is not one.
-
-**Medplum.** The graph is modeled properly. `Observation` carries
-`status: "preliminary"` because a machine measured it and no human has signed it.
-`Provenance` names the `Device` as author and the audio window as source entity.
-`Task` uses `intent` to express the approval gate rather than a status column of
-our own invention. `AuditEvent` is written on rejection as well as approval,
-because a rejection is a clinical decision. A `Condition` is never created from a
-voice signal. See `src/lib/writeback.ts` and `scripts/seed.ts`.
-
-**Stedi.** One eligibility check, fired only after the clinician approves.
-Checking coverage before a clinician decides implies cost is steering care.
-Checking after means the clinician decided and the system is removing friction.
-The UI enforces the ordering: the button does not exist until approval lands.
-See `src/lib/stedi.ts`.
-
----
-
-## Non-negotiable rules, enforced in code
-
-1. Never display a value the system did not compute or receive. Prosody omits
-   features it cannot measure rather than estimating them.
-2. Never convert an acoustic signal into a diagnosis. The agent system prompt
-   forbids it, and the write-back labels every acoustic Observation
-   "descriptive, not diagnostic".
-3. Never create a FHIR `Condition` from a voice signal.
-4. No `Task` without a recorded human approval carrying identity and timestamp.
-5. Transcript, chart, and acoustic evidence stay separated visually and
-   structurally, including in the `Composition`.
-6. Synthetic patient only, labeled on screen.
-7. Secrets only in `.env.local`. `.env.example` carries names, never values.
+- **`Patient` with the R4 `patient-animal` extension**, carrying `species`,
+  `breed`, and `genderStatus`. R4 shipped this and almost nobody uses it. Species
+  uses a SNOMED code; breed is deliberately left as text because the breed code
+  was not verified and a wrong code is worse than an honest string.
+- **`RelatedPerson` as the informant.** The patient cannot self-report, so the
+  owner is the instrument, and `Provenance.agent.type` is `informant` for
+  anything she stated versus `author` for anything the agent derived.
+- **`Observation.status` is `preliminary`** on everything the call produced. A
+  machine wrote it and no veterinarian has signed it.
+- **`Task.intent` is `proposal`**, not `order`. The approval gate is expressed in
+  FHIR rather than in a status column of our own invention.
+- **No `Condition` is ever created.** A triage rule match is not a diagnosis.
+- **Search parameters, not client-side filtering.**
+  `Observation?subject=...&code=http://loinc.org|29463-7&_sort=-date&_count=3`.
 
 ---
 
@@ -156,31 +153,30 @@ See `src/lib/stedi.ts`.
 
 ```
 scripts/verify-apis.ts     one round trip per platform, with latency
-scripts/seed.ts            the FHIR graph
+scripts/seed.ts            the clinic, Luna, the chart, the calendar
 scripts/build-index.ts     the Moss chart index, plus three probes
 
-src/lib/case.ts            the synthetic case. Swap this to change the domain
+src/lib/case.ts            Luna, the clinic, the triage rules. The only file
+                           that knows what species this is
+src/lib/loop.ts            the eight steps, and every Medplum write
+src/lib/medplum-links.ts   deep links into the Medplum app
+src/lib/medplum.ts         authenticated client, actor resolution
 src/lib/deepgram.ts        token grant, keyterm priming, Aura TTS
 src/lib/moss.ts            two-index ambient retrieval
-src/lib/medplum.ts         authenticated client, actor resolution
 src/lib/agent.ts           the intake agent and its safety prompt
-src/lib/writeback.ts       Observation, Provenance, Task, AuditEvent, Composition
 src/lib/prosody.ts         real acoustic DSP
-src/lib/stedi.ts           post-approval eligibility
-src/lib/client/useVisit.ts the client state machine
-src/app/page.tsx           the three-column console
+src/lib/stedi.ts           eligibility, test mode
+src/app/page.tsx           the eight-step console
+src/app/voice/page.tsx     the live voice console
 public/pcm-worklet.js      mic capture, teed to Deepgram and to the DSP
 ```
 
-`src/lib/case.ts` is the only file that knows what kind of patient this is.
-Changing the domain is a swap there, not a rewrite.
-
 ---
 
-## Related plans
+## Related
 
+- `~/Documents/vetra-openvpm-demo/RUNBOOK.md` is the OpenVPM build this replaces,
+  including the two findings above.
 - `~/Documents/claudia/.hermes/plans/2026-08-01_013926-oneshot-undertone-build-and-prompt.md`
-  is the plan this implements, including the judge panel and the tier gates.
-- `~/Documents/claudia/vetra/MEDPLUM-HACKATHON-DEMO-PROMPT.md` is an alternative
-  veterinary framing of the same substrate. Not built. Kept because the argument
-  in it is reusable.
+  is the human-medicine framing, with the judge panel and the tier gates. The
+  platform playbook in section 2 still applies.

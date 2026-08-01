@@ -1,41 +1,83 @@
 /**
- * Seed the synthetic patient into Medplum as a real FHIR R4 graph.
+ * Seed the clinic into Medplum as a real FHIR R4 graph.
  *
  *   npm run seed
  *
- * Idempotent: every resource is upserted on a stable identifier, so running it
- * twice does not duplicate the chart.
+ * Idempotent: every resource is upserted on a stable identifier.
  *
- * The graph, and why each piece is here:
- *   Patient              the subject, carrying stated pronouns as an extension
- *   Practitioner         the clinician who approves, so approval has an identity
- *   Device               Undertone itself, so Provenance can name the author
- *   Condition            chart problems, from history, never from a voice signal
- *   MedicationStatement  what she takes, and the source of Deepgram keyterms
- *   AllergyIntolerance   ditto
- *   Observation          labs and vitals with real LOINC codes
- *   Encounter            the March visit the retrieval will surface
- *   Coverage             so the post-approval eligibility check has a subscriber
+ * This is the part that replaces OpenVPM. The graph, and why each piece is here:
+ *
+ *   Organization    the practice, carrying its timezone as an extension. The
+ *                   PIMS this replaces could not expose the practice timezone
+ *                   on its integrator API, so a laptop in California booked
+ *                   three hours off. Here the timezone is in the record.
+ *   Patient         Luna, an animal, modeled with the FHIR patient-animal
+ *                   extension: species, breed, genderStatus. R4 shipped this
+ *                   and almost nobody uses it.
+ *   RelatedPerson   Maria, the owner. The patient cannot self-report, so the
+ *                   owner is the informant and the record should say so.
+ *   Practitioner    Dr. Chen, who approves.
+ *   Device          Vetra itself, so Provenance can name a machine as author.
+ *   Observation     body weight, real LOINC.
+ *   Immunization    rabies, lapsed. The overdue flag drives a later beat.
+ *   DocumentReference  the chart notes Moss indexes.
+ *   Schedule + Slot the clinic's calendar. Booking writes an Appointment
+ *                   against a free Slot and flips it to busy, so a double
+ *                   booking is refused by the record rather than by our code.
  */
 
 import "./load-env";
 import type {
-  AllergyIntolerance,
-  Condition,
-  Coverage,
   Device,
+  DocumentReference,
   Encounter,
-  MedicationStatement,
+  Immunization,
   Observation,
+  Organization,
   Patient,
   Practitioner,
+  RelatedPerson,
+  Schedule,
+  Slot,
 } from "@medplum/fhirtypes";
 import { getMedplum, UNDERTONE_IDENTIFIER_SYSTEM } from "../src/lib/medplum";
-import { PATIENT, VISIT } from "../src/lib/case";
+import { CHART, CLINIC, PATIENT } from "../src/lib/case";
 
-const SNOMED = "http://snomed.info/sct";
 const LOINC = "http://loinc.org";
-const RXNORM = "http://www.nlm.nih.gov/research/umls/rxnorm";
+const SNOMED = "http://snomed.info/sct";
+
+/** Wall clock in a named timezone to a UTC instant. */
+function wallClockToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone: string,
+): Date {
+  const guess = Date.UTC(year, month - 1, day, hour, minute);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(new Date(guess)).map((p) => [p.type, p.value]),
+  );
+  const asSeen = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour === "24" ? "0" : parts.hour),
+    Number(parts.minute),
+  );
+  return new Date(guess + (guess - asSeen));
+}
 
 async function main() {
   const medplum = await getMedplum();
@@ -44,203 +86,142 @@ async function main() {
     created.push(`${r.resourceType}/${r.id}`);
     console.log(`  ${r.resourceType}/${r.id}`);
   };
+  const on = (value: string) =>
+    `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|${value}`;
+  const ident = (value: string) => [
+    { system: UNDERTONE_IDENTIFIER_SYSTEM, value },
+  ];
 
-  console.log("\nSeeding synthetic patient into Medplum\n");
+  console.log("\nSeeding the clinic into Medplum\n");
 
-  // ---- Patient -------------------------------------------------------------
+  // ---- Organization, with the timezone the old PIMS could not expose -------
+  const organization = await medplum.upsertResource<Organization>(
+    {
+      resourceType: "Organization",
+      identifier: ident("clinic-neighborhood-vet"),
+      active: true,
+      name: CLINIC.name,
+      extension: [
+        {
+          url: "https://vetra.health/fhir/StructureDefinition/practice-timezone",
+          valueString: CLINIC.timezone,
+        },
+      ],
+    },
+    on("clinic-neighborhood-vet"),
+  );
+  note(organization);
+  const managingOrganization = { reference: `Organization/${organization.id}` };
+
+  // ---- Practitioner --------------------------------------------------------
+  const practitioner = await medplum.upsertResource<Practitioner>(
+    {
+      resourceType: "Practitioner",
+      identifier: ident("clinician-chen"),
+      name: [{ given: ["Elaine"], family: "Chen", prefix: ["Dr"] }],
+    },
+    on("clinician-chen"),
+  );
+  note(practitioner);
+
+  // ---- Patient: an animal, modeled the way R4 says to ----------------------
   const patient = await medplum.upsertResource<Patient>(
     {
       resourceType: "Patient",
-      identifier: [
-        { system: UNDERTONE_IDENTIFIER_SYSTEM, value: PATIENT.mrn },
-      ],
+      identifier: ident(PATIENT.mrn),
       active: true,
-      name: [
-        {
-          use: "official",
-          given: [PATIENT.givenName],
-          family: PATIENT.familyName,
-        },
-      ],
-      gender: PATIENT.gender,
+      name: [{ use: "usual", text: PATIENT.name, given: [PATIENT.name] }],
+      gender: PATIENT.sex,
       birthDate: PATIENT.birthDate,
-      telecom: [{ system: "phone", value: PATIENT.phone, use: "mobile" }],
+      managingOrganization,
       extension: [
         {
-          // Pronouns as stated by the patient and recorded, not inferred.
-          url: "http://hl7.org/fhir/StructureDefinition/individual-pronouns",
+          // The R4 animal extension. Species, breed, gender status.
+          url: "http://hl7.org/fhir/StructureDefinition/patient-animal",
           extension: [
             {
-              url: "value",
-              valueCodeableConcept: { text: PATIENT.pronouns },
+              url: "species",
+              valueCodeableConcept: {
+                coding: [
+                  {
+                    system: SNOMED,
+                    code: PATIENT.species.code,
+                    display: PATIENT.species.display,
+                  },
+                ],
+                text: PATIENT.species.text,
+              },
+            },
+            {
+              url: "breed",
+              // Breed is left as text: the SNOMED breed code was not verified,
+              // and a wrong code is worse than an honest string.
+              valueCodeableConcept: { text: PATIENT.breed.text },
+            },
+            {
+              url: "genderStatus",
+              valueCodeableConcept: {
+                coding: [
+                  {
+                    system:
+                      "http://terminology.hl7.org/CodeSystem/animal-genderstatus",
+                    code: PATIENT.genderStatus.code,
+                    display: PATIENT.genderStatus.display,
+                  },
+                ],
+                text: PATIENT.genderStatus.display,
+              },
             },
           ],
         },
       ],
     },
-    `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|${PATIENT.mrn}`,
+    on(PATIENT.mrn),
   );
   note(patient);
   const subject = { reference: `Patient/${patient.id}` };
 
-  // ---- Practitioner, the human who approves --------------------------------
-  const practitioner = await medplum.upsertResource<Practitioner>(
+  // ---- The owner. The patient cannot self-report, so this matters. --------
+  const owner = await medplum.upsertResource<RelatedPerson>(
     {
-      resourceType: "Practitioner",
-      identifier: [
-        { system: UNDERTONE_IDENTIFIER_SYSTEM, value: "clinician-osei" },
-      ],
-      name: [{ given: ["Amara"], family: "Osei", prefix: ["Dr"] }],
+      resourceType: "RelatedPerson",
+      identifier: ident("owner-maria"),
+      active: true,
+      patient: subject,
+      name: [{ text: PATIENT.ownerName }],
+      telecom: [{ system: "phone", value: PATIENT.ownerPhone, use: "mobile" }],
+      relationship: [{ text: "Owner" }],
     },
-    `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|clinician-osei`,
+    on("owner-maria"),
   );
-  note(practitioner);
+  note(owner);
 
-  // ---- Device, so Provenance can say a machine authored the observation -----
+  // ---- Device: the agent, so Provenance can name a machine as author ------
   const device = await medplum.upsertResource<Device>(
     {
       resourceType: "Device",
-      identifier: [
-        { system: UNDERTONE_IDENTIFIER_SYSTEM, value: "undertone-intake-agent" },
-      ],
+      identifier: ident("vetra-intake-agent"),
       status: "active",
-      deviceName: [{ name: "Undertone intake agent", type: "user-friendly-name" }],
+      owner: managingOrganization,
+      deviceName: [
+        { name: "Vetra intake agent", type: "user-friendly-name" },
+      ],
       version: [{ value: "0.1.0" }],
     },
-    `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|undertone-intake-agent`,
+    on("vetra-intake-agent"),
   );
   note(device);
 
-  // ---- Conditions ----------------------------------------------------------
-  const conditions: Array<[string, string, string, string]> = [
-    ["cond-hypothyroid", "40930008", "Hypothyroidism", "2019-06-11"],
-    ["cond-prediabetes", "714628002", "Prediabetes", "2023-09-02"],
-  ];
-  for (const [key, code, display, onset] of conditions) {
-    const resource = await medplum.upsertResource<Condition>(
-      {
-        resourceType: "Condition",
-        identifier: [{ system: UNDERTONE_IDENTIFIER_SYSTEM, value: key }],
-        clinicalStatus: {
-          coding: [
-            {
-              system:
-                "http://terminology.hl7.org/CodeSystem/condition-clinical",
-              code: "active",
-            },
-          ],
-        },
-        verificationStatus: {
-          coding: [
-            {
-              system:
-                "http://terminology.hl7.org/CodeSystem/condition-ver-status",
-              code: "confirmed",
-            },
-          ],
-        },
-        category: [
-          {
-            coding: [
-              {
-                system:
-                  "http://terminology.hl7.org/CodeSystem/condition-category",
-                code: "problem-list-item",
-              },
-            ],
-          },
-        ],
-        code: { coding: [{ system: SNOMED, code, display }], text: display },
-        subject,
-        onsetDateTime: onset,
-      },
-      `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|${key}`,
-    );
-    note(resource);
-  }
-
-  // ---- Medications ---------------------------------------------------------
-  const meds: Array<[string, string, string, string]> = [
-    ["med-levothyroxine", "10582", "Levothyroxine", "88 mcg by mouth once daily in the morning"],
-    ["med-metformin", "6809", "Metformin", "500 mg by mouth twice daily with meals"],
-    ["med-lisinopril", "29046", "Lisinopril", "10 mg by mouth once daily"],
-    ["med-atorvastatin", "83367", "Atorvastatin", "20 mg by mouth at bedtime"],
-  ];
-  for (const [key, code, display, sig] of meds) {
-    const resource = await medplum.upsertResource<MedicationStatement>(
-      {
-        resourceType: "MedicationStatement",
-        identifier: [{ system: UNDERTONE_IDENTIFIER_SYSTEM, value: key }],
-        status: "active",
-        medicationCodeableConcept: {
-          coding: [{ system: RXNORM, code, display }],
-          text: display,
-        },
-        subject,
-        dosage: [{ text: sig }],
-      },
-      `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|${key}`,
-    );
-    note(resource);
-  }
-
-  // ---- Allergy -------------------------------------------------------------
-  const allergy = await medplum.upsertResource<AllergyIntolerance>(
-    {
-      resourceType: "AllergyIntolerance",
-      identifier: [{ system: UNDERTONE_IDENTIFIER_SYSTEM, value: "allergy-smx" }],
-      clinicalStatus: {
-        coding: [
-          {
-            system:
-              "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
-            code: "active",
-          },
-        ],
-      },
-      type: "allergy",
-      category: ["medication"],
-      criticality: "low",
-      code: {
-        coding: [{ system: RXNORM, code: "10180", display: "Sulfamethoxazole" }],
-        text: "Sulfamethoxazole",
-      },
-      patient: subject,
-      recordedDate: "2018-04-22",
-      reaction: [
-        {
-          manifestation: [{ text: "Diffuse maculopapular rash" }],
-          severity: "mild",
-        },
-      ],
-    },
-    `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|allergy-smx`,
-  );
-  note(allergy);
-
-  // ---- Observations, real LOINC ------------------------------------------
-  type ObsSpec = {
-    key: string;
-    code: string;
-    display: string;
-    value: number;
-    unit: string;
-    date: string;
-    category: "laboratory" | "vital-signs";
-  };
-  const observations: ObsSpec[] = [
-    { key: "obs-tsh-2026-03", code: "3016-3", display: "Thyrotropin [Units/volume] in Serum or Plasma", value: 4.8, unit: "mIU/L", date: "2026-03-19", category: "laboratory" },
-    { key: "obs-tsh-2025-04", code: "3016-3", display: "Thyrotropin [Units/volume] in Serum or Plasma", value: 2.9, unit: "mIU/L", date: "2025-04-08", category: "laboratory" },
-    { key: "obs-a1c-2026-03", code: "4548-4", display: "Hemoglobin A1c/Hemoglobin.total in Blood", value: 6.1, unit: "%", date: "2026-03-19", category: "laboratory" },
-    { key: "obs-weight-2026-03", code: "29463-7", display: "Body weight", value: 75.4, unit: "kg", date: "2026-03-19", category: "vital-signs" },
-    { key: "obs-weight-2025-08", code: "29463-7", display: "Body weight", value: 71.2, unit: "kg", date: "2025-08-14", category: "vital-signs" },
-    { key: "obs-weight-2024-11", code: "29463-7", display: "Body weight", value: 70.1, unit: "kg", date: "2024-11-02", category: "vital-signs" },
-  ];
-  for (const spec of observations) {
-    const resource = await medplum.upsertResource<Observation>(
+  // ---- Weight history ------------------------------------------------------
+  for (const [key, value, date] of [
+    ["obs-weight-2026-07", 28.6, "2026-07-01"],
+    ["obs-weight-2025-07", 28.1, "2025-07-14"],
+    ["obs-weight-2024-07", 27.9, "2024-07-09"],
+  ] as const) {
+    const observation = await medplum.upsertResource<Observation>(
       {
         resourceType: "Observation",
-        identifier: [{ system: UNDERTONE_IDENTIFIER_SYSTEM, value: spec.key }],
+        identifier: ident(key),
         status: "final",
         category: [
           {
@@ -248,72 +229,59 @@ async function main() {
               {
                 system:
                   "http://terminology.hl7.org/CodeSystem/observation-category",
-                code: spec.category,
+                code: "vital-signs",
               },
             ],
           },
         ],
         code: {
-          coding: [{ system: LOINC, code: spec.code, display: spec.display }],
-          text: spec.display,
+          coding: [{ system: LOINC, code: "29463-7", display: "Body weight" }],
+          text: "Body weight",
         },
         subject,
-        effectiveDateTime: spec.date,
+        effectiveDateTime: date,
+        performer: [{ reference: `Practitioner/${practitioner.id}` }],
         valueQuantity: {
-          value: spec.value,
-          unit: spec.unit,
+          value,
+          unit: "kg",
           system: "http://unitsofmeasure.org",
-          code: spec.unit,
+          code: "kg",
         },
       },
-      `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|${spec.key}`,
+      on(key),
     );
-    note(resource);
+    note(observation);
   }
 
-  // Blood pressure as a proper panel with components.
-  const bp = await medplum.upsertResource<Observation>(
+  // ---- Rabies, lapsed ------------------------------------------------------
+  const rabies = await medplum.upsertResource<Immunization>(
     {
-      resourceType: "Observation",
-      identifier: [{ system: UNDERTONE_IDENTIFIER_SYSTEM, value: "obs-bp-2026-03" }],
-      status: "final",
-      category: [
-        {
-          coding: [
-            {
-              system:
-                "http://terminology.hl7.org/CodeSystem/observation-category",
-              code: "vital-signs",
-            },
-          ],
-        },
+      resourceType: "Immunization",
+      identifier: ident("imm-rabies-2025"),
+      status: "completed",
+      // No CVX code exists for veterinary rabies products, so this is text.
+      vaccineCode: { text: "Rabies vaccine, 1 year product" },
+      patient: subject,
+      occurrenceDateTime: "2025-07-14",
+      lotNumber: "RB-3318",
+      performer: [
+        { actor: { reference: `Practitioner/${practitioner.id}` } },
       ],
-      code: {
-        coding: [{ system: LOINC, code: "85354-9", display: "Blood pressure panel" }],
-        text: "Blood pressure",
-      },
-      subject,
-      effectiveDateTime: "2026-03-19",
-      component: [
+      note: [
         {
-          code: { coding: [{ system: LOINC, code: "8480-6", display: "Systolic blood pressure" }] },
-          valueQuantity: { value: 138, unit: "mm[Hg]", system: "http://unitsofmeasure.org", code: "mm[Hg]" },
-        },
-        {
-          code: { coding: [{ system: LOINC, code: "8462-4", display: "Diastolic blood pressure" }] },
-          valueQuantity: { value: 86, unit: "mm[Hg]", system: "http://unitsofmeasure.org", code: "mm[Hg]" },
+          text: "One year product. Next dose was due 2026-07-14 and has not been given. Currently overdue.",
         },
       ],
     },
-    `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|obs-bp-2026-03`,
+    on("imm-rabies-2025"),
   );
-  note(bp);
+  note(rabies);
 
-  // ---- The March encounter that retrieval will surface ---------------------
+  // ---- The July wellness encounter ---------------------------------------
   const encounter = await medplum.upsertResource<Encounter>(
     {
       resourceType: "Encounter",
-      identifier: [{ system: UNDERTONE_IDENTIFIER_SYSTEM, value: "enc-2026-03" }],
+      identifier: ident("enc-2026-07"),
       status: "finished",
       class: {
         system: "http://terminology.hl7.org/CodeSystem/v3-ActCode",
@@ -321,34 +289,109 @@ async function main() {
         display: "ambulatory",
       },
       subject,
-      participant: [{ individual: { reference: `Practitioner/${practitioner.id}` } }],
-      period: { start: "2026-03-19T15:00:00Z", end: "2026-03-19T15:25:00Z" },
-      reasonCode: [{ text: "Routine follow-up, thyroid and glycemic control" }],
+      serviceProvider: managingOrganization,
+      participant: [
+        { individual: { reference: `Practitioner/${practitioner.id}` } },
+      ],
+      period: { start: "2026-07-01T14:00:00Z", end: "2026-07-01T14:30:00Z" },
+      reasonCode: [{ text: "Annual wellness examination" }],
     },
-    `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|enc-2026-03`,
+    on("enc-2026-07"),
   );
   note(encounter);
 
-  // ---- Coverage, so eligibility has a subscriber ---------------------------
-  const coverage = await medplum.upsertResource<Coverage>(
+  // ---- Chart notes, the documents Moss indexes ---------------------------
+  for (const entry of CHART.filter(
+    (c) => c.resourceType === "DocumentReference",
+  )) {
+    const document = await medplum.upsertResource<DocumentReference>(
+      {
+        resourceType: "DocumentReference",
+        identifier: ident(entry.id),
+        status: "current",
+        type: { text: entry.label },
+        subject,
+        date: `${entry.date}T12:00:00Z`,
+        author: [{ reference: `Practitioner/${practitioner.id}` }],
+        content: [
+          {
+            attachment: {
+              contentType: "text/plain",
+              data: Buffer.from(entry.text, "utf8").toString("base64"),
+              title: entry.label,
+            },
+          },
+        ],
+      },
+      on(entry.id),
+    );
+    note(document);
+  }
+
+  // ---- The calendar. A booking is refused by the record, not by our code. --
+  const schedule = await medplum.upsertResource<Schedule>(
     {
-      resourceType: "Coverage",
-      identifier: [{ system: UNDERTONE_IDENTIFIER_SYSTEM, value: "coverage-primary" }],
-      status: "active",
-      beneficiary: subject,
-      subscriberId: "UT0000000001",
-      payor: [{ display: "Stedi test payer" }],
-      relationship: { text: "self" },
+      resourceType: "Schedule",
+      identifier: ident("schedule-chen"),
+      active: true,
+      actor: [
+        { reference: `Practitioner/${practitioner.id}` },
+        managingOrganization,
+      ],
+      comment: `${CLINIC.name} · ${CLINIC.timezone}`,
     },
-    `identifier=${UNDERTONE_IDENTIFIER_SYSTEM}|coverage-primary`,
+    on("schedule-chen"),
   );
-  note(coverage);
+  note(schedule);
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const year = tomorrow.getFullYear();
+  const month = tomorrow.getMonth() + 1;
+  const day = tomorrow.getDate();
+
+  // 10:00 is deliberately seeded busy. The agent has to be told no and move on,
+  // which is the beat that proves the calendar belongs to the clinic.
+  const slotPlan: Array<[number, number, "busy" | "free"]> = [
+    [10, 0, "busy"],
+    [10, 30, "free"],
+    [11, 0, "free"],
+    [11, 30, "free"],
+    [14, 0, "free"],
+  ];
+
+  console.log(
+    `\n  Slots for ${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")} in ${CLINIC.timezone}:`,
+  );
+  for (const [hour, minute, status] of slotPlan) {
+    const start = wallClockToUtc(year, month, day, hour, minute, CLINIC.timezone);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const key = `slot-${String(hour).padStart(2, "0")}${String(minute).padStart(2, "0")}`;
+    const slot = await medplum.upsertResource<Slot>(
+      {
+        resourceType: "Slot",
+        identifier: ident(key),
+        schedule: { reference: `Schedule/${schedule.id}` },
+        status,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        comment:
+          status === "busy"
+            ? "Held for another patient"
+            : "Available for booking",
+      },
+      on(key),
+    );
+    console.log(
+      `    ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")} local  ${start.toISOString()}  ${status}`,
+    );
+    created.push(`Slot/${slot.id}`);
+  }
 
   console.log(`\n${created.length} resources upserted.`);
-  console.log(`Patient/${patient.id} is the demo subject.`);
-  console.log(`Visit reason: ${VISIT.reasonForVisit}\n`);
+  console.log(`Patient/${patient.id} is ${PATIENT.name}.`);
   console.log(
-    "Open this patient in the Medplum app to show the graph during the pitch.\n",
+    `\nOpen https://app.medplum.com/Patient/${patient.id} to show the graph.\n`,
   );
 }
 
