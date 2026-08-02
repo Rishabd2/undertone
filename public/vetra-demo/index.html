@@ -278,7 +278,7 @@ body.seeking *{animation:none !important; transition:none !important;}
 
   <div class="topbar">
     <div class="brand"><span class="mark">C</span> careVet <span class="sub">· clinic operating layer</span></div>
-    <div class="stagepill"><span class="stg" id="stagePill">Intake</span> <b>Luna</b> · returning patient · <span id="pimsName">Medplum</span></div>
+    <div class="stagepill"><span class="stg" id="stagePill">Intake</span> <b>Bruno</b> · returning patient · <span id="pimsName">Medplum</span></div>
     <div class="clock" id="clock">09:41</div>
   </div>
 
@@ -300,7 +300,7 @@ body.seeking *{animation:none !important; transition:none !important;}
       <div class="rail-sub">One record. Entered once. Read and written by every agent.</div>
       <div class="ctx-card" id="ctxCard">
         <div class="ctx-title">Patient record</div>
-        <span class="ctx-tag" id="ctxTag"><a id="ctxPatientLink" href="#" target="_blank" rel="noreferrer">Open Luna in Medplum</a></span>
+        <span class="ctx-tag" id="ctxTag"><a id="ctxPatientLink" href="#" target="_blank" rel="noreferrer">Open Bruno in Medplum</a></span>
         <div id="ctxFields"></div>
         <div class="ctx-foot" id="ctxFoot">One record. Every agent.</div>
       </div>
@@ -312,7 +312,7 @@ body.seeking *{animation:none !important; transition:none !important;}
     <!-- agents -->
     <aside class="agents">
       <div class="ag-head"><span class="t">Behind the scenes</span><span class="live"><span class="d"></span><span id="streamMode">Medplum</span></span></div>
-      <div class="ag-sub" id="agSub">Every event links into Luna&rsquo;s Medplum record. Click any resource.</div>
+      <div class="ag-sub" id="agSub">Every event links into Bruno&rsquo;s Medplum record. Click any resource.</div>
       <div class="stream" id="stream"></div>
       <div class="ag-foot">careVet · Medplum · Moss · Deepgram · Vapi · <b>human approves anything clinical</b></div>
     </aside>
@@ -334,17 +334,17 @@ body.seeking *{animation:none !important; transition:none !important;}
       +   '</div>'
       +   '<div class="patient-card step" id="pcard" style="animation-delay:1.4s">'
       +     '<div class="pc-photo">🐕</div>'
-      +     '<div class="pc-nm" id="pcNm">Luna</div>'
-      +     '<div class="pc-meta" id="pcMeta">6 yr · FS German Shepherd · 28.6 kg</div>'
+      +     '<div class="pc-nm" id="pcNm">Bruno</div>'
+      +     '<div class="pc-meta" id="pcMeta">6 yr · MN German Shepherd · 28.6 kg</div>'
       +     '<span class="repeat">✓ returning patient</span>'
-      +     '<div class="hx" id="pcHx"><b>Owner:</b> Maria Gonzalez<br><b>Last visit:</b> Jul 1, wellness · 28.6 kg<br><b>On file:</b> no current medications<br><b>Rabies:</b> <span class="flag">OVERDUE</span></div>'
+      +     '<div class="hx" id="pcHx"><b>Owner:</b> Lalit Kumar<br><b>Last visit:</b> Jul 1, wellness · 28.6 kg<br><b>On file:</b> no current medications<br><b>Rabies:</b> <span class="flag">OVERDUE</span></div>'
       +   '</div>'
       + '</div>'; },
 
     soap: function(){ return ''
       + '<div class="stg-head"><span class="k">Scene 2</span><h2>Exam becomes a structured record</h2><div class="derive">the scribe writes the SOAP live</div></div>'
       + '<div class="soap">'
-      +   '<div class="soap-block s step" style="animation-delay:.1s"><div class="lab">Subjective</div><p>6 yr FS German Shepherd, acute left hind lameness since yesterday evening after jumping from the couch, with an audible yelp. Partial weight bearing since. Appetite and water intake normal, no vomiting.</p></div>'
+      +   '<div class="soap-block s step" style="animation-delay:.1s"><div class="lab">Subjective</div><p>Bruno, 6 yr MN German Shepherd, acute left hind lameness since yesterday evening after jumping from the couch, with an audible yelp. Partial weight bearing since. Appetite and water intake normal, no vomiting. Owner: Lalit Kumar.</p></div>'
       +   '<div class="soap-block o step" style="animation-delay:.9s"><div class="lab">Objective</div><p>BW 28.6 kg · T 101.8°F · Grade 2/4 lameness left hind at walk. Mild effusion left stifle, discomfort on full extension. No drawer appreciated conscious. BCS 5/9.</p></div>'
       +   '<div class="soap-block a step" style="animation-delay:1.7s"><div class="lab">Assessment</div><p>Acute left hind lameness following trauma. Rule out partial cranial cruciate ligament tear vs soft-tissue strain. Rabies lapsed.</p></div>'
       +   '<div class="soap-block p step" style="animation-delay:2.5s"><div class="lab">Plan</div><ul class="plan-list"><li>Radiograph left stifle, 2 views</li><li>Carprofen 75 mg PO q12h × 10 days</li><li>Strict rest, leash only</li><li>Administer rabies (1 yr) today</li><li>Recheck in 12 days</li></ul></div>'
@@ -406,7 +406,7 @@ body.seeking *{animation:none !important; transition:none !important;}
       +   '<div class="rescard disch step"><div class="rh"><span class="tagdot" style="background:var(--green-500)"></span>Discharge · drafted</div>'
       +     '<h4>Home care</h4><ul><li>Carprofen 1 tablet every 12 hours, with food</li><li>Strict rest, leash walks only, no stairs or jumping</li><li>Ice the stifle 10 min, 2×/day for 3 days</li></ul>'
       +     '<h4>Call us if</h4><ul><li>She stops bearing weight on the leg entirely</li><li>Not eating &gt; 24 h, or vomiting on the medication</li></ul>'
-      +     '<div class="toast">Sent to Maria · recheck booked for Aug 8</div>'
+      +     '<div class="toast">Sent to Lalit · recheck booked for Aug 8</div>'
       +   '</div>'
       +   '<div class="rescard invoice step" style="animation-delay:.7s"><div class="rh"><span class="tagdot" style="background:var(--coral)"></span>Invoice · auto-captured</div>'
       +     '<div class="line-item step" style="animation-delay:.9s"><span>Exam · lameness</span><span class="amt">$68</span></div>'
@@ -435,23 +435,23 @@ body.seeking *{animation:none !important; transition:none !important;}
 
   var SCENES = [
     { key:'intake', label:'Intake · live call', stage:'Intake', dur:14000,
-      /* Bare Haley ↔ Maria beats — enough to pitch, not the full call. */
+      /* Bare Haley ↔ Lalit beats — enough to pitch, not the full call. */
       transcript:[
-        {d:400, t:'vetra', who:'Haley · careVet', x:'Urbana Paws, this is Haley. How can I help you and Luna tonight?'},
-        {d:1800, t:'caller', who:'Owner · Maria', x:"Hi, it's Maria. Luna's been limping on her back left leg since yesterday evening."},
-        {d:3600, t:'vetra', who:'Haley · careVet', x:'What happened, and is she putting any weight on that leg?'},
-        {d:5200, t:'caller', who:'Owner · Maria', x:"She jumped off the couch and yelped. She's putting some weight on it but not much."},
-        {d:7000, t:'vetra', who:'Haley · careVet', x:'Is she eating and drinking normally?'},
-        {d:8600, t:'caller', who:'Owner · Maria', x:"She's still eating fine and drinking normally. No vomiting."}
+        {d:400, t:'vetra', who:'Haley · careVet', x:'Urbana Paws, this is Haley. How can I help you and Bruno tonight?'},
+        {d:1800, t:'caller', who:'Owner · Lalit', x:"Hi, it's Lalit. Bruno's been limping on his back left leg since yesterday evening."},
+        {d:3600, t:'vetra', who:'Haley · careVet', x:'What happened, and is he putting any weight on that leg?'},
+        {d:5200, t:'caller', who:'Owner · Lalit', x:"He jumped off the couch and yelped. He's putting some weight on it but not much."},
+        {d:7000, t:'vetra', who:'Haley · careVet', x:'Is he eating and drinking normally?'},
+        {d:8600, t:'caller', who:'Owner · Lalit', x:"He's still eating fine and drinking normally. No vomiting."}
       ],
       timeline:[
         {at:600, e:ev('FRONTDESK','t-front','call.answer <span class="hl">first ring</span> · 2:14 AM')},
-        {at:2800, e:ev('FRONTDESK','t-front','identity.resolve &rarr; <span class="hl">Luna / Maria Gonzalez</span> (returning)')},
-        {at:2900, e:ctx('Owner','Maria Gonzalez')},
-        {at:3400, e:ctx('Patient','Luna · 6y FS German Shepherd')},
+        {at:2800, e:ev('FRONTDESK','t-front','identity.resolve &rarr; <span class="hl">Bruno / Lalit Kumar</span> (returning)')},
+        {at:2900, e:ctx('Owner','Lalit Kumar')},
+        {at:3400, e:ctx('Patient','Bruno · 6y MN German Shepherd')},
         {at:3900, e:ctx('Status','Returning patient')},
         {at:5000, e:ev('RECALL','t-recall','context.retrieve &rarr; last visit Jul 1 · 28.6 kg · rabies <span class="fl">OVERDUE</span>')},
-        {at:5200, e:ev('MOSS','t-moss','moss.dev retrieve &rarr; chart index · Luna')},
+        {at:5200, e:ev('MOSS','t-moss','moss.dev retrieve &rarr; chart index · Bruno')},
         {at:5600, e:ctx('Complaint','Lameness, hind left <span class="src">stated</span>')},
         {at:6200, e:ctx('Onset','Yesterday evening <span class="src">stated</span>')},
         {at:6800, e:ctx('Care gap','<span class="flag">Rabies overdue</span> · flag for visit')},
@@ -556,7 +556,7 @@ body.seeking *{animation:none !important; transition:none !important;}
   var clockEl = document.getElementById('clock');
   var ctxPatientLink = document.getElementById('ctxPatientLink');
 
-  /* Luna's Medplum record — hydrated once, refreshed as the call writes. */
+  /* Case Medplum record — hydrated once, refreshed as the call writes. */
   var LUNA = null;
   var seenObs = {};
   var seenOut = {};
@@ -618,16 +618,17 @@ body.seeking *{animation:none !important; transition:none !important;}
     var card = document.getElementById('pcard');
     if(!nm) return;
     var wt = (LUNA.weights && LUNA.weights[0]) ? (LUNA.weights[0].value + ' ' + LUNA.weights[0].unit) : '28.6 kg';
-    nm.innerHTML = link(LUNA.patient.url, LUNA.patient.name);
-    meta.textContent = [LUNA.patient.genderStatus, LUNA.patient.breed, wt].filter(Boolean).join(' · ');
+    // Demo labels (Bruno / Lalit); Medplum links still open the real chart.
+    nm.innerHTML = link(LUNA.patient.url, 'Bruno');
+    meta.textContent = ['MN', LUNA.patient.breed || 'German Shepherd', wt].filter(Boolean).join(' · ');
     var rabies = LUNA.immunization
       ? (LUNA.immunization.overdue
           ? '<a href="'+LUNA.immunization.url+'" target="_blank" rel="noreferrer"><span class="flag">OVERDUE</span></a>'
           : link(LUNA.immunization.url, 'on file'))
       : '<span class="flag">OVERDUE</span>';
     var owner = LUNA.owner.url
-      ? '<a href="'+LUNA.owner.url+'" target="_blank" rel="noreferrer">'+LUNA.owner.name+'</a>'
-      : LUNA.owner.name;
+      ? '<a href="'+LUNA.owner.url+'" target="_blank" rel="noreferrer">Lalit Kumar</a>'
+      : 'Lalit Kumar';
     hx.innerHTML = '<b>Owner:</b> '+owner+'<br><b>Weight:</b> '+link((LUNA.weights&&LUNA.weights[0]||{}).url, wt)+'<br><b>Rabies:</b> '+rabies;
     if(card){
       card.style.cursor = 'pointer';
@@ -640,17 +641,24 @@ body.seeking *{animation:none !important; transition:none !important;}
 
   /* Agent prompts that pair with the known 3 owner replies from the intake loop. */
   var INTAKE_AGENT_QS = [
-    'Urbana Paws, this is Haley. How can I help you and Luna tonight?',
-    'What happened, and is she putting any weight on that leg?',
-    'Is she eating and drinking normally?'
+    'Urbana Paws, this is Haley. How can I help you and Bruno tonight?',
+    'What happened, and is he putting any weight on that leg?',
+    'Is he eating and drinking normally?'
+  ];
+
+  var DEMO_OWNER_LINES = [
+    "Hi, it's Lalit. Bruno's been limping on his back left leg since yesterday evening.",
+    "He jumped off the couch and yelped. He's putting some weight on it but not much.",
+    "He's still eating fine and drinking normally. No vomiting."
   ];
 
   function bareIntakeTurns(ownerLines){
+    var lines = DEMO_OWNER_LINES;
     var turns = [];
-    var n = Math.min(ownerLines.length, INTAKE_AGENT_QS.length);
+    var n = Math.min(lines.length, INTAKE_AGENT_QS.length);
     for(var i = 0; i < n; i++){
       turns.push({ t:'vetra', who:'Haley · careVet', x: INTAKE_AGENT_QS[i] });
-      turns.push({ t:'caller', who:'Owner · Maria', x: String(ownerLines[i]) });
+      turns.push({ t:'caller', who:'Owner · Lalit', x: lines[i] });
     }
     return turns;
   }
@@ -779,16 +787,16 @@ body.seeking *{animation:none !important; transition:none !important;}
     }
   }
 
-  /* Rewrite intake scene events so they deep-link Luna's real resources. */
+  /* Rewrite intake scene events so they deep-link Bruno's real Medplum resources. */
   function rebuildIntakeTimeline(){
     var intake = SCENES[0];
     intake.timeline = [
       {at:600, e:ev('FRONTDESK','t-front','call.answer <span class="hl">first ring</span>')},
-      {at:2800, e:{type:'ev', tag:'FRONTDESK', cls:'t-front', msg:'identity.resolve &rarr; <span class="hl">Luna / Maria Gonzalez</span>', link:'patient'}},
-      {at:2900, e:{type:'ctx', k:'Owner', v:'Maria Gonzalez', link:'owner'}},
-      {at:3400, e:{type:'ctx', k:'Patient', v:'Luna · German Shepherd', link:'patient'}},
+      {at:2800, e:{type:'ev', tag:'FRONTDESK', cls:'t-front', msg:'identity.resolve &rarr; <span class="hl">Bruno / Lalit Kumar</span>', link:'patient'}},
+      {at:2900, e:{type:'ctx', k:'Owner', v:'Lalit Kumar', link:'owner'}},
+      {at:3400, e:{type:'ctx', k:'Patient', v:'Bruno · German Shepherd', link:'patient'}},
       {at:3900, e:ctx('Status','Returning patient')},
-      {at:4600, e:{type:'ev', tag:'MOSS', cls:'t-moss', msg:'moss.dev retrieve &rarr; chart index · Luna history'}},
+      {at:4600, e:{type:'ev', tag:'MOSS', cls:'t-moss', msg:'moss.dev retrieve &rarr; chart index · Bruno history'}},
       {at:5000, e:{type:'ev', tag:'RECALL', cls:'t-recall', msg:'context.retrieve &rarr; chart · rabies <span class="fl">OVERDUE</span>', link:'rabies'}},
       {at:5200, e:{type:'ev', tag:'MOSS', cls:'t-moss', msg:'moss.dev hit &rarr; weight + breed risk + rabies note'}},
       {at:5600, e:{type:'ctx', k:'Complaint', v:'Lameness', link:'field:Presenting complaint', plain:'Lameness'}},
@@ -878,7 +886,7 @@ body.seeking *{animation:none !important; transition:none !important;}
       LUNA.patient.reference = 'Patient/'+data.patient.id;
       if(ctxPatientLink){
         ctxPatientLink.href = data.patient.url;
-        ctxPatientLink.textContent = 'Open Luna in Medplum';
+        ctxPatientLink.textContent = 'Open Bruno in Medplum';
       }
       var pill = document.getElementById('pimsName');
       if(pill) pill.innerHTML = link(data.patient.url, 'Medplum');
@@ -906,7 +914,7 @@ body.seeking *{animation:none !important; transition:none !important;}
           applyLive(data);
           if(!primed){
             primed = true;
-            pushEv('MEDPLUM','t-ctx','watching Luna&rsquo;s record · new call writes appear here');
+            pushEv('MEDPLUM','t-ctx','watching Bruno&rsquo;s record · new call writes appear here');
           }
         })
         .catch(function(){});
