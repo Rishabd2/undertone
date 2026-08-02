@@ -4,8 +4,6 @@ One veterinary case, carried across the workflow, written into a real FHIR
 record. The phone call becomes a chart, and every field carries a `Provenance`
 saying whether the owner stated it or the agent inferred it.
 
-Built for the Medplum x YC Agentic Healthcare Hackathon, YC SF, 1 August 2026.
-
 ## The argument
 
 An earlier version of this demo ran against OpenVPM, a self-hosted open-source
